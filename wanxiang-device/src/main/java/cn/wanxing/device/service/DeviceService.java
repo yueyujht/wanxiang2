@@ -134,7 +134,7 @@ public class DeviceService {
         if (online) {
             for (SubDeviceInfo sub : data.getSubDevices()) {
                 upsertChild(sub.getSn(), sn, main.getOrgId(), sub.getDomain(),
-                        sub.getType(), sub.getSubType(), now);
+                        sub.getType(), sub.getSubType(), sub.getIndex(), now);
             }
         } else {
             List<Device> children = deviceMapper.selectList(
@@ -151,7 +151,7 @@ public class DeviceService {
     /**
      * 子设备（如机场内的无人机）：按 SN 查询，不存在则新建，并继承父设备的机构
      */
-    private void upsertChild(String sn, String parentSn, Long orgId, Integer domain, Integer type, Integer subType, LocalDateTime now) {
+    private void upsertChild(String sn, String parentSn, Long orgId, Integer domain, Integer type, Integer subType, String index, LocalDateTime now) {
         // 1.按 SN 查子设备，不存在则新建
         Device child = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
         boolean isNew = child == null;
@@ -166,6 +166,7 @@ public class DeviceService {
         child.setDomain(domain);
         child.setType(type);
         child.setSubType(subType);
+        child.setDeviceIndex(index);
         child.setModelName(DeviceModelEnum.resolveName(domain, type, subType));
         child.setStatus(DeviceStatusEnum.ONLINE);
         child.setLastOnlineAt(now);

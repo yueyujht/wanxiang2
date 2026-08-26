@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+
 /**
  * 机场请求-应答服务：处理设备发来的 requests 消息，并回复 requests_reply。
  *
@@ -62,9 +64,9 @@ public class DockRequestService {
         MethodResult result;
         switch (method) {
             case "config" -> result = MethodResult.ok(handleConfig());
-            case "airport_bind_status" -> result = MethodResult.ok(handleBindStatus(request.getData()));
+            case "airport_bind_status" -> result = handleBindStatus(request.getData());
             case "airport_organization_get" -> result = handleOrganizationGet(request.getData());
-            case "airport_organization_bind" -> result = MethodResult.ok(handleOrganizationBind(request.getData()));
+            case "airport_organization_bind" -> result = handleOrganizationBind(request.getData());
             default -> {
                 log.warn("未知的 requests method={}", method);
                 return;
@@ -91,7 +93,7 @@ public class DockRequestService {
     /**
      * 查询设备绑定状态：返回每台设备是否已绑定组织
      */
-    private ObjectNode handleBindStatus(JsonNode data) {
+    private MethodResult handleBindStatus(JsonNode data) {
         // 遍历请求里的每台设备，逐个查询绑定状态
         ArrayNode bindStatus = objectMapper.createArrayNode();
         JsonNode devices = data == null ? null : data.get("devices");
@@ -102,7 +104,7 @@ public class DockRequestService {
         }
         ObjectNode output = objectMapper.createObjectNode();
         output.set("bind_status", bindStatus);
-        return output;
+        return MethodResult.ok(output);
     }
 
     private ObjectNode buildBindStatusItem(String sn) {
@@ -151,7 +153,7 @@ public class DockRequestService {
     /**
      * 执行绑定：把设备 SN 绑定到绑定码对应的机构
      */
-    private ObjectNode handleOrganizationBind(JsonNode data) {
+    private MethodResult handleOrganizationBind(JsonNode data) {
         // 遍历要绑定的设备，逐个执行绑定并记录结果
         ArrayNode errInfos = objectMapper.createArrayNode();
         JsonNode bindDevices = data == null ? null : data.get("bind_devices");
@@ -170,69 +172,60 @@ public class DockRequestService {
         }
         ObjectNode output = objectMapper.createObjectNode();
         output.set("err_infos", errInfos);
-        return output;
+        return MethodResult.ok(output);
     }
 
     /**
-     * 把设备 SN 绑定到绑定码对应的机构；返回 0 成功，210231 绑定失败
+     * 将设备根据绑定码绑定到机构
      */
     private int bindDevice(String sn, String bindCode, String callsign, String modelKey) {
-        // 1.按绑定码查机构，绑定码无效返回 210231
+        // 1.查询机构
         Org org = orgMapper.selectOne(new LambdaQueryWrapper<Org>().eq(Org::getBindCode, bindCode));
         if (org == null) {
             return DockErrorCode.DEVICE_BINDING_FAILED;
         }
-        // 2.查设备是否存在，不存在则新建（初始为离线）
+
+        // 2.解析设备名称
+        int[] modelKeys = applyModelKey(modelKey);
+        String modelName = DeviceModelEnum.resolveName(modelKeys[0], modelKeys[1], modelKeys[2]);
+
+        // 3.根据设备sn查询设备
+        // 这里有三种情况：a.没有设备，新建；b.有设备，是老设备解除绑定；c.有设备，但已经绑定到其他组织
+        // 情况c，返回错误码
         Device device = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
-        boolean isNew = device == null;
-        if (isNew) {
-            device = new Device();
-            device.setSn(sn);
-            device.setStatus(DeviceStatusEnum.OFFLINE);
-        } else if (device.getOrgId() != null && !device.getOrgId().equals(org.getId())) {
-            // 已绑定到其它机构，不可重复绑定
+        if(device != null && device.getOrgId() != null && !device.getOrgId().equals(org.getId())){
             return DockErrorCode.NON_REPEATABLE_BINDING;
         }
-        // 3.绑定：设置所属机构 + 设备名称 + 设备型号（device_model_key），并落库
-        device.setOrgId(org.getId());
-        if (callsign != null && !callsign.isEmpty()) {
-            device.setName(callsign);
-        }
-        applyModelKey(device, modelKey);
-        if (isNew) {
+        if (device == null) {
+            // 情况a
+            device = Device.create(sn, callsign, org.getId(), modelKeys, modelName);
             deviceMapper.insert(device);
         } else {
+            // 情况b
+            Device.update(device, org.getId(), callsign);
             deviceMapper.updateById(device);
         }
         return 0;
     }
 
     /**
-     * 解析 device_model_key（如 3-1-0），把 domain / type / sub_type / 型号名称存到设备
+     * 解析 device_model_key（如 3-1-0）
      */
-    private void applyModelKey(Device device, String modelKey) {
+    private int[] applyModelKey(String modelKey) {
         if (modelKey == null || modelKey.isEmpty()) {
-            return;
+            return new int[]{-1,-1,-1};
         }
         String[] parts = modelKey.split("-");
-        if (parts.length < 3) {
-            return;
+        if (parts.length != 3) {
+            return new int[]{-1,-1,-1};
         }
-        Integer domain = parseIntSafe(parts[0]);
-        Integer type = parseIntSafe(parts[1]);
-        Integer subType = parseIntSafe(parts[2]);
-        device.setDomain(domain);
-        device.setType(type);
-        device.setSubType(subType);
-        device.setModelName(DeviceModelEnum.resolveName(domain, type, subType));
-    }
-
-    private static Integer parseIntSafe(String s) {
-        try {
-            return Integer.parseInt(s.trim());
-        } catch (NumberFormatException e) {
-            return null;
+        int[] modelKeys;
+        try{
+            modelKeys = Arrays.stream(parts).mapToInt(Integer::parseInt).toArray();
+        }catch (NumberFormatException e){
+            return new int[]{-1,-1,-1};
         }
+        return modelKeys;
     }
 
     // ============ 回复 ============

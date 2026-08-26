@@ -5,6 +5,7 @@ import cn.wanxing.device.constant.DeviceTopicConst;
 import cn.wanxing.device.constant.DeviceTopicType;
 import cn.wanxing.device.service.DevicePropertyService;
 import cn.wanxing.device.service.DeviceService;
+import cn.wanxing.device.service.DeviceStateService;
 import cn.wanxing.device.service.DockRequestService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ public class DeviceMessageHandler {
 
     private final DevicePropertyService devicePropertyService;
 
+    private final DeviceStateService deviceStateService;
+
     @ServiceActivator(inputChannel = MqttConfig.INBOUND_CHANNEL)
     public void onMessage(Message<?> message) {
         // 1.获取 topic 与消息体
@@ -44,7 +47,8 @@ public class DeviceMessageHandler {
             case ONLINE_OFFLINE -> deviceService.handleStatus(extractSn(topic), body);
             case REQUESTS -> dockRequestService.handleRequest(topic, body);
             case PROPERTY_SET_REPLY -> devicePropertyService.handleReply(extractSn(topic), body);
-            case OSD, STATE, EVENTS, SERVICES_REPLY ->
+            case STATE -> deviceStateService.handleState(extractSn(topic), body);
+            case OSD, EVENTS, SERVICES_REPLY ->
                     log.info("暂未处理的消息 topic={} type={}", topic, type);
             default -> log.debug("忽略未知消息 topic={}", topic);
         }

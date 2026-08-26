@@ -46,15 +46,48 @@ public class Device {
     /** 设备型号名称（如 DJI Dock / Matrice 30） */
     private String modelName;
 
+    /** 固件版本（来自 state 消息） */
+    private String firmwareVersion;
+
+    /** 设备索引（遥控器 A控/B控） */
+    private String deviceIndex;
+
     /** 在线状态 */
     private DeviceStatusEnum status;
 
     /** 最近上线时间 */
     private LocalDateTime lastOnlineAt;
 
+    /** 绑定组织时间（解绑清空） */
+    private LocalDateTime boundAt;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+
+    // 创建新设备（绑定）
+    public static Device create(String sn, String name, Long orgId, int[] modelKeys, String modelName) {
+        Device device = new Device();
+        device.setSn(sn);
+        device.setName(name);
+        device.setOrgId(orgId);
+        device.setDomain(modelKeys[0]);
+        device.setType(modelKeys[1]);
+        device.setSubType(modelKeys[2]);
+        device.setModelName(modelName);
+        device.setStatus(DeviceStatusEnum.OFFLINE);
+        device.setBoundAt(LocalDateTime.now());
+        return device;
+    }
+
+    // 更新解除绑定的旧设备（重新绑定）
+    public static Device update(Device device, Long orgId, String name) {
+        device.setOrgId(orgId);
+        device.setName(name);
+        device.setStatus(DeviceStatusEnum.OFFLINE);
+        device.setBoundAt(LocalDateTime.now());
+        return device;
+    }
 }
