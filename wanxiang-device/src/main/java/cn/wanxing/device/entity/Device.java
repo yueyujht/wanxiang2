@@ -46,9 +46,6 @@ public class Device {
     /** 设备型号名称（如 DJI Dock / Matrice 30） */
     private String modelName;
 
-    /** 固件版本（来自 state 消息） */
-    private String firmwareVersion;
-
     /** 设备索引（遥控器 A控/B控） */
     private String deviceIndex;
 

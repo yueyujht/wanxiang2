@@ -14,7 +14,8 @@ public enum DeviceErrorCode implements ErrorCode {
     OPERATION_FORBIDDEN("OPERATION_FORBIDDEN", "无权执行该操作"),
     INSERT_FAILED("INSERT_FAILED", "新增设备失败"),
     UPDATE_FAILED("UPDATE_FAILED", "更新设备失败"),
-    PROPERTY_SET_FAILED("PROPERTY_SET_FAILED", "属性设置下发失败");
+    PROPERTY_SET_FAILED("PROPERTY_SET_FAILED", "属性设置下发失败"),
+    PROPERTY_VALUE_INVALID("PROPERTY_VALUE_INVALID", "属性值不合法");
 
     private final String code;
 

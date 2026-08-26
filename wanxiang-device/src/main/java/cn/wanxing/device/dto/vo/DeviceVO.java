@@ -42,9 +42,6 @@ public class DeviceVO {
     /** 设备型号名称 */
     private String modelName;
 
-    /** 固件版本 */
-    private String firmwareVersion;
-
     /** 设备索引（遥控器 A控/B控） */
     private String deviceIndex;
 
@@ -69,7 +66,6 @@ public class DeviceVO {
         vo.type = device.getType();
         vo.subType = device.getSubType();
         vo.modelName = device.getModelName();
-        vo.firmwareVersion = device.getFirmwareVersion();
         vo.deviceIndex = device.getDeviceIndex();
         vo.status = device.getStatus() != null ? device.getStatus().name() : null;
         vo.lastOnlineAt = device.getLastOnlineAt();

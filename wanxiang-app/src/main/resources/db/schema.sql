@@ -74,7 +74,6 @@ CREATE TABLE IF NOT EXISTS sys_device (
     type           INT          DEFAULT NULL COMMENT '设备型号',
     sub_type       INT          DEFAULT NULL COMMENT '设备子型号',
     model_name       VARCHAR(64)  DEFAULT NULL COMMENT '设备型号名称（如 DJI Dock / Matrice 30）',
-    firmware_version VARCHAR(32)  DEFAULT NULL COMMENT '固件版本（来自 state 消息）',
     device_index     VARCHAR(32)  DEFAULT NULL COMMENT '设备索引（遥控器 A控/B控）',
     status           VARCHAR(16)  NOT NULL DEFAULT 'OFFLINE' COMMENT 'ONLINE 在线 / OFFLINE 离线',
     last_online_at   DATETIME     DEFAULT NULL COMMENT '最近上线时间',
@@ -86,6 +85,21 @@ CREATE TABLE IF NOT EXISTS sys_device (
     KEY idx_org (org_id),
     KEY idx_parent_sn (parent_sn)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备表';
+
+CREATE TABLE IF NOT EXISTS sys_device_state (
+    id                      BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    device_sn               VARCHAR(64)  NOT NULL COMMENT '设备序列号',
+    state_json              JSON         DEFAULT NULL COMMENT '最近一次 state 消息 data 原文（兜底存全部字段）',
+    firmware_version        VARCHAR(32)  DEFAULT NULL COMMENT '固件版本',
+    alarm_state             INT          DEFAULT NULL COMMENT '告警状态',
+    drone_in_dock           INT          DEFAULT NULL COMMENT '飞机是否在舱',
+    cover_state             INT          DEFAULT NULL COMMENT '舱盖状态',
+    mode_code               INT          DEFAULT NULL COMMENT '当前模式码',
+    firmware_upgrade_status INT          DEFAULT NULL COMMENT '固件升级状态',
+    updated_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_device_sn (device_sn)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备最新状态表（每台设备只留最新一条）';
 
 -- ===================== 种子数据 =====================
 
