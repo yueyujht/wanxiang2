@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.wanxing</groupId>
+        <artifactId>WanXiang</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>wanxiang-device</artifactId>
+    <name>wanxiang-device</name>
+    <description>设备接入模块：MQTT 接入、设备上下线、OSD 上报（对接 DJI 上云 API）</description>
+
+    <dependencies>
+        <!-- 复用 common 的 web/校验/mybatis-plus/redis/sa-token 等基础设施 -->
+        <dependency>
+            <groupId>cn.wanxing</groupId>
+            <artifactId>wanxiang-common</artifactId>
+        </dependency>
+
+        <!-- 复用 user 模块的 UserContext / Org / OrgMapper，做多租户机构隔离 -->
+        <dependency>
+            <groupId>cn.wanxing</groupId>
+            <artifactId>wanxiang-user</artifactId>
+        </dependency>
+
+        <!-- MQTT 接入（Spring Integration 6.x，Boot3 兼容） -->
+        <dependency>
+            <groupId>org.springframework.integration</groupId>
+            <artifactId>spring-integration-mqtt</artifactId>
+            <version>6.2.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

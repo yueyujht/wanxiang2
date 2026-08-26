@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.wanxing</groupId>
+        <artifactId>WanXiang</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>wanxiang-app</artifactId>
+    <name>wanxiang-app</name>
+    <description>启动模块：应用入口与配置</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.wanxing</groupId>
+            <artifactId>wanxiang-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.wanxing</groupId>
+            <artifactId>wanxiang-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.wanxing</groupId>
+            <artifactId>wanxiang-device</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>wanxiang-app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

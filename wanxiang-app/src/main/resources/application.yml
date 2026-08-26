@@ -1,0 +1,67 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: wanxiang
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3307/wanxiang?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      # password:
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      continue-on-error: false
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+
+# DJI 上云 API MQTT 接入（不填 broker-url 则不建立连接，应用照常启动）
+# 值来自 DJI 开发者平台「上云」配置页
+wanxiang:
+  mqtt:
+    broker-url: tcp://127.0.0.1:1883
+    username: yueyu
+    password: 123456
+    inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests
+    client-id: wanxiang
+
+# DJI 上云 API 应用凭据（创建「上云 API」应用后拿到，License 校验时下发给设备）
+# wanxiang:
+#   dji:
+#     app-id: your-app-id
+#     app-key: your-app-key
+#     app-license: your-app-license
+#     ntp-server-host: your-ntp-server
+
+# Sa-Token 配置（会话持久化到 Redis）
+sa-token:
+  token-name: satoken          # token 名称（请求头）
+  timeout: 2592000             # token 有效期（秒），默认 30 天
+  active-timeout: -1           # 活跃超时，-1 表示不限制
+  is-concurrent: true          # 允许同端并发登录
+  is-share: true               # 同端登录共享同一 token
+  token-style: uuid            # token 风格
+  is-log: false
+  is-print: false
