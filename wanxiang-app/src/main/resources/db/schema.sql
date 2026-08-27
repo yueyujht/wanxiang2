@@ -104,6 +104,23 @@ CREATE TABLE IF NOT EXISTS sys_device_state (
     UNIQUE KEY uk_device_sn (device_sn)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备最新状态表（每台设备只留最新一条）';
 
+CREATE TABLE IF NOT EXISTS sys_alarm (
+    id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    device_sn   VARCHAR(64)  NOT NULL COMMENT '设备 SN',
+    level       INT          DEFAULT NULL COMMENT '告警等级 0通知/1提醒/2警告',
+    module      INT          DEFAULT NULL COMMENT '事件模块 0飞行任务/1设备管理/2媒体/3hms',
+    in_the_sky  INT          DEFAULT NULL COMMENT '是否飞行 0地上/1天上',
+    code        VARCHAR(64)  DEFAULT NULL COMMENT '告警码',
+    device_type VARCHAR(32)  DEFAULT NULL COMMENT '设备类型 domain-type-subtype',
+    imminent    INT          DEFAULT NULL COMMENT '是否及时性 0否/1是',
+    args        JSON         DEFAULT NULL COMMENT '参数原文',
+    message     VARCHAR(512) DEFAULT NULL COMMENT '填充后的告警文案',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '告警时间',
+    PRIMARY KEY (id),
+    KEY idx_device_sn (device_sn),
+    KEY idx_created_at (created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备告警表';
+
 -- ===================== 种子数据 =====================
 
 -- 预定义角色（全局，org_id 为 NULL；id 为内部自增主键，业务上以 code 标识）

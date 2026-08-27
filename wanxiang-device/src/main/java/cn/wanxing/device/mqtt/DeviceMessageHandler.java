@@ -1,13 +1,12 @@
 package cn.wanxing.device.mqtt;
 
+import cn.wanxing.device.alarm.service.AlarmService;
+import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
-import cn.wanxing.device.constant.DeviceTopicConst;
-import cn.wanxing.device.constant.DeviceTopicType;
-import cn.wanxing.device.service.DeviceOsdService;
-import cn.wanxing.device.service.DevicePropertyService;
-import cn.wanxing.device.service.DeviceService;
-import cn.wanxing.device.service.DeviceStateService;
-import cn.wanxing.device.service.DockRequestService;
+import cn.wanxing.device.state.service.DeviceOsdService;
+import cn.wanxing.device.property.service.DevicePropertyService;
+import cn.wanxing.device.state.service.DeviceStateService;
+import cn.wanxing.device.topology.service.TopologyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -27,15 +26,17 @@ import java.nio.charset.StandardCharsets;
 @ConditionalOnProperty(prefix = "wanxiang.mqtt", name = "broker-url")
 public class DeviceMessageHandler {
 
-    private final DeviceService deviceService;
+    private final TopologyService topologyService;
 
-    private final DockRequestService dockRequestService;
+    private final BindingService bindingService;
 
-    private final DevicePropertyService devicePropertyService;
+    private final DevicePropertyService propertyService;
 
-    private final DeviceStateService deviceStateService;
+    private final DeviceStateService stateService;
 
-    private final DeviceOsdService deviceOsdService;
+    private final DeviceOsdService osdService;
+
+    private final AlarmService alarmService;
 
     @ServiceActivator(inputChannel = MqttConfig.INBOUND_CHANNEL)
     public void onMessage(Message<?> message) {
@@ -47,12 +48,13 @@ public class DeviceMessageHandler {
         // 2.识别消息类型并分发
         DeviceTopicType type = DeviceTopicType.fromTopic(topic);
         switch (type) {
-            case ONLINE_OFFLINE -> deviceService.handleStatus(extractSn(topic), body);
-            case REQUESTS -> dockRequestService.handleRequest(topic, body);
-            case PROPERTY_SET_REPLY -> devicePropertyService.handleReply(extractSn(topic), body);
-            case STATE -> deviceStateService.handleState(extractSn(topic), body);
-            case OSD -> deviceOsdService.handleOsd(extractSn(topic), body);
-            case EVENTS, SERVICES_REPLY ->
+            case ONLINE_OFFLINE -> topologyService.handleStatus(extractSn(topic), body);
+            case REQUESTS -> bindingService.handleRequest(topic, body);
+            case PROPERTY_SET_REPLY -> propertyService.handleReply(extractSn(topic), body);
+            case STATE -> stateService.handleState(extractSn(topic), body);
+            case OSD -> osdService.handleOsd(extractSn(topic), body);
+            case EVENTS -> alarmService.handleEvents(extractSn(topic), body);
+            case SERVICES_REPLY ->
                     log.info("暂未处理的消息 topic={} type={}", topic, type);
             default -> log.debug("忽略未知消息 topic={}", topic);
         }

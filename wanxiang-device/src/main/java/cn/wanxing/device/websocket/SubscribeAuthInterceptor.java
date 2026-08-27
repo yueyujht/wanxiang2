@@ -1,9 +1,9 @@
 package cn.wanxing.device.websocket;
 
-import cn.wanxing.device.entity.Device;
+import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.exception.DeviceErrorCode;
 import cn.wanxing.device.exception.DeviceException;
-import cn.wanxing.device.mapper.DeviceMapper;
+import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.user.entity.User;
 import cn.wanxing.user.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
