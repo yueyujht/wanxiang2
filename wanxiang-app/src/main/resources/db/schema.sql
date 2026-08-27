@@ -121,6 +121,22 @@ CREATE TABLE IF NOT EXISTS sys_alarm (
     KEY idx_created_at (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备告警表';
 
+CREATE TABLE IF NOT EXISTS sys_firmware_task (
+    id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    device_sn      VARCHAR(64)  NOT NULL COMMENT '设备 SN',
+    target_version VARCHAR(32)  DEFAULT NULL COMMENT '目标固件版本',
+    file_name      VARCHAR(128) DEFAULT NULL COMMENT '固件文件名',
+    file_url       VARCHAR(512) DEFAULT NULL COMMENT '固件下载地址',
+    md5            VARCHAR(64)  DEFAULT NULL COMMENT '固件 MD5',
+    file_size      BIGINT       DEFAULT NULL COMMENT '固件大小（字节）',
+    upgrade_type   INT          DEFAULT NULL COMMENT '升级类型 2一致性/3普通/4PSDK',
+    status         VARCHAR(32)  DEFAULT NULL COMMENT 'sent/rejected/in_progress/ok/failed/canceled/timeout',
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_device_sn (device_sn)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '固件升级任务表';
+
 -- ===================== 种子数据 =====================
 
 -- 预定义角色（全局，org_id 为 NULL；id 为内部自增主键，业务上以 code 标识）

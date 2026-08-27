@@ -44,7 +44,7 @@ wanxiang:
     broker-url: tcp://127.0.0.1:1883
     username: yueyu
     password: 123456
-    inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests,thing/product/+/property/set_reply
+    inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests,thing/product/+/property/set_reply,thing/product/+/services_reply
     client-id: wanxiang
 
 # DJI 上云 API 应用凭据（创建「上云 API」应用后拿到，License 校验时下发给设备）

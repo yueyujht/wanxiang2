@@ -3,10 +3,13 @@ package cn.wanxing.device.mqtt;
 import cn.wanxing.device.alarm.service.AlarmService;
 import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
-import cn.wanxing.device.state.service.DeviceOsdService;
+import cn.wanxing.device.firmware.service.FirmwareService;
 import cn.wanxing.device.property.service.DevicePropertyService;
+import cn.wanxing.device.state.service.DeviceOsdService;
 import cn.wanxing.device.state.service.DeviceStateService;
 import cn.wanxing.device.topology.service.TopologyService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,6 +41,10 @@ public class DeviceMessageHandler {
 
     private final AlarmService alarmService;
 
+    private final FirmwareService firmwareService;
+
+    private final ObjectMapper objectMapper;
+
     @ServiceActivator(inputChannel = MqttConfig.INBOUND_CHANNEL)
     public void onMessage(Message<?> message) {
         // 1.获取 topic 与消息体
@@ -53,10 +60,34 @@ public class DeviceMessageHandler {
             case PROPERTY_SET_REPLY -> propertyService.handleReply(extractSn(topic), body);
             case STATE -> stateService.handleState(extractSn(topic), body);
             case OSD -> osdService.handleOsd(extractSn(topic), body);
-            case EVENTS -> alarmService.handleEvents(extractSn(topic), body);
-            case SERVICES_REPLY ->
-                    log.info("暂未处理的消息 topic={} type={}", topic, type);
+            case EVENTS -> routeEvents(extractSn(topic), body);
+            case SERVICES_REPLY -> firmwareService.handleReply(extractSn(topic), body);
             default -> log.debug("忽略未知消息 topic={}", topic);
+        }
+    }
+
+    /**
+     * events 主题按 method 分发：hms 告警，ota_progress 固件升级进度
+     */
+    private void routeEvents(String sn, String body) {
+        String method = extractMethod(body);
+        if ("hms".equals(method)) {
+            alarmService.handleEvents(sn, body);
+        } else if ("ota_progress".equals(method)) {
+            firmwareService.handleProgress(sn, body);
+        } else {
+            log.debug("忽略未知 events method={} sn={}", method, sn);
+        }
+    }
+
+    /**
+     * 从消息体提取 method 字段
+     */
+    private String extractMethod(String body) {
+        try {
+            return objectMapper.readTree(body).path("method").asText(null);
+        } catch (JsonProcessingException e) {
+            return null;
         }
     }
 
