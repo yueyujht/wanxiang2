@@ -84,7 +84,6 @@ public class DevicePropertyService {
     }
 
     /**
-     * todo：没有实机，待测
      * 处理属性设置回执：解析每个属性的结果码（result：0 成功 / 1 失败 / 2 超时）
      */
     public void handleReply(String sn, String payload) {
@@ -97,7 +96,7 @@ public class DevicePropertyService {
             return;
         }
 
-        // 回执结构：data = {属性名: {state: {result, code}}}，遍历每个属性记录结果
+        // 回执结构：data = {属性名: {state: {result}}}，遍历每个属性记录结果
         JsonNode data = reply.path("data");
         if (data == null || !data.isObject()) {
             log.warn("属性设置回执缺少 data 字段 sn={} payload={}", sn, payload);
@@ -106,9 +105,8 @@ public class DevicePropertyService {
         data.fields().forEachRemaining(entry -> {
             JsonNode state = entry.getValue().path("state");
             int result = state.path("result").asInt(-1);
-            int code = state.path("code").asInt(0);
-            log.info("设备属性设置结果 sn={} property={} result={} code={}（result: 0 成功 / 1 失败 / 2 超时）",
-                    sn, entry.getKey(), result, code);
+            log.info("设备属性设置结果 sn={} property={} result={}（result: 0 成功 / 1 失败 / 2 超时）",
+                    sn, entry.getKey(), result);
         });
     }
 

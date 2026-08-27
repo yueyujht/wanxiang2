@@ -1,8 +1,11 @@
 package cn.wanxing.device.service;
 
+import cn.hutool.core.lang.Assert;
+import cn.wanxing.common.exception.ErrorCode;
 import cn.wanxing.common.result.MultiResult;
 import cn.wanxing.device.constant.DeviceModelEnum;
 import cn.wanxing.device.constant.DeviceStatusEnum;
+import cn.wanxing.device.constant.DeviceTopicConst;
 import cn.wanxing.device.dto.SubDeviceInfo;
 import cn.wanxing.device.dto.TopologyData;
 import cn.wanxing.device.dto.TopologyMessage;
@@ -14,6 +17,7 @@ import cn.wanxing.device.exception.DeviceErrorCode;
 import cn.wanxing.device.exception.DeviceException;
 import cn.wanxing.device.mapper.DeviceMapper;
 import cn.wanxing.device.mapper.DeviceStateMapper;
+import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.user.context.UserContext;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.entity.User;
@@ -22,6 +26,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,6 +60,8 @@ public class DeviceService {
     private final UserContext userContext;
 
     private final OrgMapper orgMapper;
+
+    private final MqttPublisher mqttPublisher;
 
     /**
      * 设备列表：分页 + 筛选。机构管理员固定看本机构，平台超管可按组织/型号/状态/关键字筛选。
@@ -204,75 +211,82 @@ public class DeviceService {
             return;
         }
 
-        // 2.判断在线还是离线：sub_devices 非空 = 上线，空/null = 离线
-        boolean online = data.getSubDevices() != null && !data.getSubDevices().isEmpty();
-        LocalDateTime now = LocalDateTime.now();
-
-        // 3.主设备必须是已绑定设备，否则忽略（未绑定设备不追踪）
-        Device main = deviceMapper.selectOne(
+        // 2.主设备必须是已绑定设备，否则忽略（未绑定设备不追踪）
+        Device mainDevice = deviceMapper.selectOne(
                 new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
-        if (main == null) {
+        if (mainDevice == null) {
             log.warn("收到未绑定设备的上下线消息，已忽略 sn={}", sn);
             return;
         }
 
-        // 4.更新主设备状态（在线时记录最近上线时间）
-        main.setDomain(data.getDomain());
-        main.setType(data.getType());
-        main.setSubType(data.getSubType());
-        main.setModelName(DeviceModelEnum.resolveName(data.getDomain(), data.getType(), data.getSubType()));
-        main.setStatus(online ? DeviceStatusEnum.ONLINE : DeviceStatusEnum.OFFLINE);
-        if (online) {
-            main.setLastOnlineAt(now);
-        }
-        deviceMapper.updateById(main);
+        // 3.更新主设备状态（在线时记录最近上线时间）
+        boolean online = data.getSubDevices() != null && !data.getSubDevices().isEmpty();
+        Device.updateForTopo(mainDevice, data.getDeviceSecret(), data.getNonce(), data.getThingVersion(), online);
+        Assert.isTrue(deviceMapper.updateById(mainDevice) > 0, () -> new DeviceException(DeviceErrorCode.UPDATE_FAILED));
 
-        // 5.处理子设备：上线时挂到主设备下（继承机构），离线时一并置离线
-        if (online) {
-            for (SubDeviceInfo sub : data.getSubDevices()) {
-                upsertChild(sub.getSn(), sn, main.getOrgId(), sub.getDomain(),
-                        sub.getType(), sub.getSubType(), sub.getIndex(), now);
+        // 4.子设备对账：以 sub_devices 列表为准（列表里 upsert 在线，不在列表里的置离线）
+        List<SubDeviceInfo> subDevices = data.getSubDevices() == null ? Collections.emptyList() : data.getSubDevices();
+        // 4.1 遍历消息里的子设备，upsert 为在线（不存在则新建）
+        for (SubDeviceInfo sub : subDevices) {
+            upsertChild(mainDevice, sub);
+        }
+        // 4.2 遍历 DB 里已有的子设备，不在消息列表里的标记离线
+        Set<String> onlineSns = subDevices.stream().map(SubDeviceInfo::getSn).collect(Collectors.toSet());
+        List<Device> childDevices = deviceMapper.selectList(
+                new LambdaQueryWrapper<Device>().eq(Device::getParentSn, sn));
+        for (Device childDevice : childDevices) {
+            if (!onlineSns.contains(childDevice.getSn())) {
+                Device.updateForTopo(childDevice, false);
+                childDevice.setStatus(DeviceStatusEnum.OFFLINE);
+                deviceMapper.updateById(childDevice);
             }
-        } else {
-            List<Device> children = deviceMapper.selectList(
-                    new LambdaQueryWrapper<Device>().eq(Device::getParentSn, sn));
-            for (Device child : children) {
-                child.setStatus(DeviceStatusEnum.OFFLINE);
-                deviceMapper.updateById(child);
-            }
+        }
+
+        // 6.回 status_reply 确认（协议要求云端收到拓扑更新后回执 result=0）
+        sendStatusReply(sn, message);
+    }
+
+    /**
+     * 回 status_reply 确认：status 是拓扑/上下线消息（区别于 state 状态消息），回 result=0 表示已收到
+     */
+    private void sendStatusReply(String sn, TopologyMessage message) {
+        ObjectNode reply = objectMapper.createObjectNode();
+        reply.put("tid", message.getTid());
+        reply.put("bid", message.getBid());
+        reply.put("timestamp", System.currentTimeMillis());
+        reply.put("method", message.getMethod() == null ? "update_topo" : message.getMethod());
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("result", 0);
+        reply.set("data", data);
+
+        String topic = DeviceTopicConst.SYS_PRE + DeviceTopicConst.PRODUCT + sn
+                + DeviceTopicConst.STATUS_SUF + DeviceTopicConst.REPLY_SUF;
+        try {
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(reply));
+        } catch (JsonProcessingException e) {
+            log.error("序列化 status_reply 失败 sn={}", sn, e);
         }
     }
 
     // ============ 私有方法 ============
 
     /**
-     * 子设备（如机场内的无人机）：按 SN 查询，不存在则新建，并继承父设备的机构
+     * 处理子设备上线（如机场内的无人机）：按 SN 查询，不存在则新建，并继承父设备的机构
      */
-    private void upsertChild(String sn, String parentSn, Long orgId, Integer domain, Integer type, Integer subType, String index, LocalDateTime now) {
+    private void upsertChild(Device mainDevice, SubDeviceInfo sub) {
         // 1.按 SN 查子设备，不存在则新建
-        Device child = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
-        boolean isNew = child == null;
+        Device childDevice = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sub.getSn()));
+        boolean isNew = childDevice == null;
         if (isNew) {
-            child = new Device();
-            child.setSn(sn);
-        }
-
-        // 2.设置父子关系、所属机构（继承父设备）、设备域/型号、在线状态
-        child.setParentSn(parentSn);
-        child.setOrgId(orgId);
-        child.setDomain(domain);
-        child.setType(type);
-        child.setSubType(subType);
-        child.setDeviceIndex(index);
-        child.setModelName(DeviceModelEnum.resolveName(domain, type, subType));
-        child.setStatus(DeviceStatusEnum.ONLINE);
-        child.setLastOnlineAt(now);
-
-        // 3.插入或更新
-        if (isNew) {
-            deviceMapper.insert(child);
-        } else {
-            deviceMapper.updateById(child);
+            // 新建子设备
+            int[] modelKeys = new int[]{sub.getDomain(),sub.getType(),sub.getSubType()};
+            String modelName = DeviceModelEnum.resolveName(modelKeys[0], modelKeys[1], modelKeys[2]);
+            childDevice = Device.create(sub.getSn(), "", mainDevice.getOrgId(), modelKeys, modelName, mainDevice.getSn(), sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
+            Assert.isTrue(deviceMapper.insert(childDevice) > 0, () -> new  DeviceException(DeviceErrorCode.INSERT_FAILED));
+        }else {
+            // 更新子设备
+            Device.updateForTopo(childDevice, sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
+            Assert.isTrue(deviceMapper.updateById(childDevice) > 0, () -> new  DeviceException(DeviceErrorCode.UPDATE_FAILED));
         }
     }
 

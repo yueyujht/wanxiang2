@@ -27,4 +27,13 @@ public class SubDeviceInfo {
 
     /** 负载挂载位置索引（如 A/B） */
     private String index;
+
+    /** 设备密钥（鉴权用） */
+    private String deviceSecret;
+
+    /** 一次性随机数（鉴权用） */
+    private String nonce;
+
+    /** 物模型版本 */
+    private String thingVersion;
 }

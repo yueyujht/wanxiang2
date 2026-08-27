@@ -202,7 +202,7 @@ public class DockRequestService {
             deviceMapper.insert(device);
         } else {
             // 情况b
-            Device.update(device, org.getId(), callsign);
+            Device.updateForRebind(device, org.getId(), callsign);
             deviceMapper.updateById(device);
         }
         return 0;
