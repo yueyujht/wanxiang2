@@ -4,7 +4,8 @@ server:
 spring:
   application:
     name: wanxiang
-
+  profiles:
+    active: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3307/wanxiang?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -30,10 +31,14 @@ spring:
       schema-locations: classpath:db/schema.sql
       continue-on-error: false
 
+logging:
+  file:
+    path: E:/yueyu/wanxiang-logs
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     banner: false
 
