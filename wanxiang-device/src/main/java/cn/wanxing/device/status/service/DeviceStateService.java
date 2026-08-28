@@ -1,7 +1,9 @@
-package cn.wanxing.device.state.service;
+package cn.wanxing.device.status.service;
 
-import cn.wanxing.device.state.mapper.DeviceStateMapper;
-import cn.wanxing.device.state.entity.DeviceState;
+import cn.wanxing.device.status.mapper.DeviceStateMapper;
+import cn.wanxing.device.status.entity.DeviceState;
+import cn.wanxing.device.mqtt.MqttLog;
+import org.slf4j.event.Level;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +33,7 @@ public class DeviceStateService {
      * @param sn      主题中的主设备序列号
      * @param payload 消息原文（JSON 字符串）
      */
+    @MqttLog(value = "设备状态变更")
     public void handleState(String sn, String payload) {
         // 1.解析消息原文，取出 data（增量：只含变化的字段）
         JsonNode root;

@@ -1,5 +1,6 @@
 package cn.wanxing.device.device.service;
 
+import cn.wanxing.common.log.ApiLog;
 import cn.wanxing.common.result.MultiResult;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.dto.DeviceQueryRequest;
@@ -8,8 +9,8 @@ import cn.wanxing.device.exception.DeviceErrorCode;
 import cn.wanxing.device.exception.DeviceException;
 import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.device.device.constant.DeviceStatusEnum;
-import cn.wanxing.device.state.entity.DeviceState;
-import cn.wanxing.device.state.mapper.DeviceStateMapper;
+import cn.wanxing.device.status.entity.DeviceState;
+import cn.wanxing.device.status.mapper.DeviceStateMapper;
 import cn.wanxing.user.context.UserContext;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.entity.User;
@@ -47,6 +48,7 @@ public class DeviceService {
     /**
      * 设备列表：分页 + 筛选。机构管理员固定看本机构，平台超管可按组织/型号/状态/关键字筛选。
      */
+    @ApiLog("设备列表")
     public MultiResult<DeviceVO> list(DeviceQueryRequest req) {
         User operator = userContext.currentUser();
         LambdaQueryWrapper<Device> qw = new LambdaQueryWrapper<>();
@@ -112,6 +114,7 @@ public class DeviceService {
     /**
      * 设备详情：按 SN 查询单台设备（含机构名），机构隔离
      */
+    @ApiLog("设备详情")
     public DeviceVO detail(String sn) {
         Device device = getDeviceBySn(sn);
         DeviceVO vo = DeviceVO.from(device);
@@ -127,6 +130,7 @@ public class DeviceService {
     /**
      * 设备最新状态：查询 sys_device_state 里该设备最近一条 state
      */
+    @ApiLog("设备状态")
     public DeviceState getState(String sn) {
         // 校验设备存在且当前用户有权限（机构隔离）
         getDeviceBySn(sn);
@@ -137,6 +141,7 @@ public class DeviceService {
     /**
      * 解绑设备：把设备从机构移除（org_id 置空，绑定时间清空）
      */
+    @ApiLog("解绑设备")
     public void unbind(String sn) {
         Device device = getDeviceBySn(sn);
         device.setOrgId(null);
@@ -147,6 +152,7 @@ public class DeviceService {
     /**
      * 重命名设备
      */
+    @ApiLog("重命名设备")
     public void rename(String sn, String name) {
         Device device = getDeviceBySn(sn);
         device.setName(name);

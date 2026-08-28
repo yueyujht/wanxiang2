@@ -5,6 +5,7 @@ import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.exception.BindErrorCode;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
+import cn.wanxing.device.mqtt.MqttLog;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.mapper.OrgMapper;
@@ -48,6 +49,7 @@ public class BindingService {
     /**
      * 入口：解析请求信封，按 method 分发，最后回复 requests_reply
      */
+    @MqttLog("设备请求（绑定/License）")
     public void handleRequest(String topic, String payload) {
         // 1.将请求体转换成消息对象
         RequestsMessage request;

@@ -1,11 +1,11 @@
-package cn.wanxing.device.property.controller;
+package cn.wanxing.device.status.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.wanxing.common.constant.PermissionConst;
 import cn.wanxing.common.result.Result;
-import cn.wanxing.device.property.dto.DevicePropertySetRequest;
-import cn.wanxing.device.property.dto.DevicePropertySchemaVO;
-import cn.wanxing.device.property.service.DevicePropertyService;
+import cn.wanxing.device.status.dto.DevicePropertySetRequest;
+import cn.wanxing.device.status.dto.DevicePropertySchemaVO;
+import cn.wanxing.device.status.service.DevicePropertyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,12 +30,12 @@ public class DevicePropertyController {
     private final DevicePropertyService devicePropertyService;
 
     /**
-     * 查询可设置属性字典（供前端渲染设置界面）
+     * 查询可设置属性字典 + 各属性当前值（供前端渲染设置界面）
      */
     @SaCheckPermission(PermissionConst.DEVICE_READ)
-    @GetMapping("/property/schema")
-    public Result<List<DevicePropertySchemaVO>> listSchema() {
-        return Result.success(devicePropertyService.listSchema());
+    @GetMapping("/{sn}/property/schema")
+    public Result<List<DevicePropertySchemaVO>> listSchema(@PathVariable String sn) {
+        return Result.success(devicePropertyService.listSchema(sn));
     }
 
     /**

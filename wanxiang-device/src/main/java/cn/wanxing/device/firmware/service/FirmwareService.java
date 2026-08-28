@@ -1,5 +1,7 @@
 package cn.wanxing.device.firmware.service;
 
+import cn.wanxing.common.log.ApiLog;
+import cn.wanxing.device.mqtt.MqttLog;
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
@@ -53,6 +55,7 @@ public class FirmwareService {
     /**
      * 下发固件升级任务：发布 ota_create 到 services 主题，并记录任务
      */
+    @ApiLog("固件升级")
     public Boolean upgrade(String sn, FirmwareUpgradeRequest req) {
         // 1.校验设备存在 + 机构隔离
         User operator = userContext.currentUser();
@@ -101,6 +104,7 @@ public class FirmwareService {
     /**
      * 处理固件升级进度（ota_progress，events 主题）：推送给前端，并更新任务状态
      */
+    @MqttLog("固件升级进度")
     public void handleProgress(String sn, String payload) {
         JsonNode root;
         try {
@@ -129,6 +133,7 @@ public class FirmwareService {
      * 处理 services_reply 回执（ota_create 的下发结果）
      * todo:没有处理result
      */
+    @MqttLog("固件升级回执")
     public void handleReply(String sn, String payload) {
         JsonNode root;
         try {
@@ -149,6 +154,7 @@ public class FirmwareService {
     /**
      * 查询设备最近升级任务
      */
+    @ApiLog("升级任务列表")
     public List<FirmwareTask> listTasks(String sn) {
         return firmwareTaskMapper.selectList(
                 new LambdaQueryWrapper<FirmwareTask>().eq(FirmwareTask::getDeviceSn, sn)

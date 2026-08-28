@@ -1,4 +1,4 @@
-package cn.wanxing.device.state.entity;
+package cn.wanxing.device.status.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -44,9 +44,19 @@ public class DeviceState {
     /** 固件升级状态（enum_int） */
     private Integer firmwareUpgradeStatus;
 
+    /** 空中回传开关（bool） */
+    private Boolean airTransferEnable;
+
+    /** 机场静音模式（enum_int 0非静音/1静音） */
+    private Integer silentMode;
+
+    /** 用户体验改善计划（enum_int 0初始/1拒绝/2同意） */
+    private Integer userExperienceImprovement;
+
     /** 最近一次更新时间 */
     private LocalDateTime updatedAt;
 
+    // todo:前端需要哪些属性在此处添加
     public static DeviceState update(String sn, JsonNode data) {
         DeviceState deviceState = new DeviceState();
         deviceState.setDeviceSn(sn);
@@ -57,6 +67,9 @@ public class DeviceState {
         deviceState.setCoverState(asInteger(data, "cover_state"));
         deviceState.setModeCode(asInteger(data, "mode_code"));
         deviceState.setFirmwareUpgradeStatus(asInteger(data, "firmware_upgrade_status"));
+        deviceState.setAirTransferEnable(asBoolean(data, "air_transfer_enable"));
+        deviceState.setSilentMode(asInteger(data, "silent_mode"));
+        deviceState.setUserExperienceImprovement(asInteger(data, "user_experience_improvement"));
         return deviceState;
     }
 
@@ -74,6 +87,14 @@ public class DeviceState {
     private static Integer asInteger(JsonNode node, String field) {
         JsonNode value = node.get(field);
         return (value == null || value.isNull()) ? null : value.asInt();
+    }
+
+    /**
+     * 取 JSON 字段的布尔值，字段不存在或为 null 时返回 null
+     */
+    private static Boolean asBoolean(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return (value == null || value.isNull()) ? null : value.asBoolean();
     }
 
 }

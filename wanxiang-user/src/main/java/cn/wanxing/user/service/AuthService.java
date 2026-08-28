@@ -1,5 +1,6 @@
 package cn.wanxing.user.service;
 
+import cn.wanxing.common.log.ApiLog;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.user.constant.UserStateEnum;
@@ -53,6 +54,7 @@ public class AuthService {
     /**
      * 发送登录验证码：手机号必须已后台录入，未录入不发送
      */
+    @ApiLog("发送登录验证码")
     public Boolean sendCode(SendCodeRequest req) {
         // 1.获取用户
         User user = userMapper.selectOne(
@@ -78,6 +80,7 @@ public class AuthService {
     /**
      * 手机号 + 验证码登录
      */
+    @ApiLog("登录")
     public LoginResponse login(PhoneLoginRequest req) {
         // 1.根据手机号获取用户
         User user = userMapper.selectOne(
@@ -118,6 +121,7 @@ public class AuthService {
     /**
      * 退出登录
      */
+    @ApiLog("退出登录")
     public Boolean logout() {
         StpUtil.logout();
         return Boolean.TRUE;
@@ -126,6 +130,7 @@ public class AuthService {
     /**
      * 获取当前登录用户
      */
+    @ApiLog("查询当前用户")
     public UserVO currentUser() {
         User user = userMapper.selectById(StpUtil.getLoginIdAsLong());
         if (user == null) {

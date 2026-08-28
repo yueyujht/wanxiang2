@@ -1,5 +1,8 @@
-package cn.wanxing.device.state.service;
+package cn.wanxing.device.status.service;
 
+import cn.wanxing.common.log.ApiLog;
+import cn.wanxing.device.mqtt.MqttLog;
+import org.slf4j.event.Level;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +48,8 @@ public class DeviceOsdService {
      * @param sn      主题中的设备序列号
      * @param payload 消息原文（JSON 字符串）
      */
-    public void handleOsd(String sn, String payload) {
+    @MqttLog(value = "OSD 遥测", level = Level.DEBUG)
+    public void handleOsd(String sn, String payload) throws JsonProcessingException {
         JsonNode root;
         try {
             root = objectMapper.readTree(payload);
@@ -60,13 +64,13 @@ public class DeviceOsdService {
         // 1.缓存最新一条（覆盖旧值并重置过期时间）
         stringRedisTemplate.opsForValue().set(OSD_KEY_PREFIX + sn, data.toString(), OSD_TTL);
         // 2.实时推送给订阅了该设备的 WebSocket 客户端
-        messagingTemplate.convertAndSend(OSD_TOPIC_PREFIX + sn + "/osd", data);
-        log.info("收到 OSD 并推送 WebSocket sn={} topic={}", sn, OSD_TOPIC_PREFIX + sn + "/osd");
+        messagingTemplate.convertAndSend(OSD_TOPIC_PREFIX + sn + "/osd", objectMapper.writeValueAsString(data));
     }
 
     /**
      * 查询设备最新一条 OSD 遥测，没有返回 null
      */
+    @ApiLog("设备 OSD 遥测")
     public JsonNode getLatestOsd(String sn) {
         String json = stringRedisTemplate.opsForValue().get(OSD_KEY_PREFIX + sn);
         if (json == null) {

@@ -1,6 +1,6 @@
-package cn.wanxing.device.property.dto;
+package cn.wanxing.device.status.dto;
 
-import cn.wanxing.device.property.constant.DevicePropertyEnum;
+import cn.wanxing.device.status.constant.DevicePropertyEnum;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,12 +25,16 @@ public class DevicePropertySchemaVO {
     /** 枚举值 → 说明（bool 类型为 null，前端渲染开关即可） */
     private Map<Integer, String> enumValues;
 
-    public static DevicePropertySchemaVO from(DevicePropertyEnum p) {
+    /** 当前值（从 sys_device_state 读取，设备未上报为 null） */
+    private Object currentValue;
+
+    public static DevicePropertySchemaVO from(DevicePropertyEnum p, Object currentValue) {
         DevicePropertySchemaVO vo = new DevicePropertySchemaVO();
         vo.property = p.getName();
         vo.name = p.getDisplayName();
         vo.type = p.getType().name().toLowerCase();
         vo.enumValues = p.getEnumValues();
+        vo.currentValue = currentValue;
         return vo;
     }
 }

@@ -1,4 +1,4 @@
-package cn.wanxing.device.topology.service;
+package cn.wanxing.device.status.service;
 
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.device.device.entity.Device;
@@ -8,10 +8,11 @@ import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.device.constant.DeviceStatusEnum;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
+import cn.wanxing.device.mqtt.MqttLog;
 import cn.wanxing.device.mqtt.MqttPublisher;
-import cn.wanxing.device.topology.entity.SubDeviceInfo;
-import cn.wanxing.device.topology.entity.TopologyData;
-import cn.wanxing.device.topology.entity.TopologyMessage;
+import cn.wanxing.device.status.entity.SubDeviceInfo;
+import cn.wanxing.device.status.entity.TopologyData;
+import cn.wanxing.device.status.entity.TopologyMessage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,8 +46,9 @@ public class TopologyService {
      * @param sn      从主题解析出的设备序列号（主设备，如机场）
      * @param payload 消息原文（JSON 字符串）
      */
+    @MqttLog("设备上下线")
     public void handleStatus(String sn, String payload) {
-        // 1.解析上下线消息为对象
+        // 1.解析mqtt消息
         TopologyMessage message;
         try {
             message = objectMapper.readValue(payload, TopologyMessage.class);
@@ -56,6 +58,7 @@ public class TopologyService {
         }
         TopologyData data = message.getData();
         if (data == null) {
+            log.warn("设备{}发送异常的mqtt消息", sn);
             return;
         }
 
@@ -90,12 +93,12 @@ public class TopologyService {
             }
         }
 
-        // 5.回 status_reply 确认（协议要求云端收到拓扑更新后回执 result=0）
+        // 5.回传mqtt消息
         sendStatusReply(sn, message);
     }
 
     /**
-     * 回 status_reply 确认：status 是拓扑/上下线消息（区别于 state 状态消息），回 result=0 表示已收到
+     * 回传mqtt消息
      */
     private void sendStatusReply(String sn, TopologyMessage message) {
         ObjectNode reply = objectMapper.createObjectNode();
@@ -110,6 +113,7 @@ public class TopologyService {
         String topic = DeviceTopicConst.SYS_PRE + DeviceTopicConst.PRODUCT + sn
                 + DeviceTopicConst.STATUS_SUF + DeviceTopicConst.REPLY_SUF;
         try {
+            log.info("云端回复设备拓扑消息------");
             mqttPublisher.publish(topic, objectMapper.writeValueAsString(reply));
         } catch (JsonProcessingException e) {
             log.error("序列化 status_reply 失败 sn={}", sn, e);

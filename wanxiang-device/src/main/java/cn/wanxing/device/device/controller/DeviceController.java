@@ -8,7 +8,7 @@ import cn.wanxing.device.device.dto.DeviceQueryRequest;
 import cn.wanxing.device.device.dto.DeviceRenameRequest;
 import cn.wanxing.device.device.service.DeviceService;
 import cn.wanxing.device.device.dto.DeviceVO;
-import cn.wanxing.device.state.entity.DeviceState;
+import cn.wanxing.device.status.entity.DeviceState;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;

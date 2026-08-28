@@ -1,9 +1,9 @@
-package cn.wanxing.device.state.controller;
+package cn.wanxing.device.status.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.wanxing.common.constant.PermissionConst;
 import cn.wanxing.common.result.Result;
-import cn.wanxing.device.state.service.DeviceOsdService;
+import cn.wanxing.device.status.service.DeviceOsdService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

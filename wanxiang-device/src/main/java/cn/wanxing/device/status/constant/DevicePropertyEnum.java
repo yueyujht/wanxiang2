@@ -1,4 +1,4 @@
-package cn.wanxing.device.property.constant;
+package cn.wanxing.device.status.constant;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

@@ -1,4 +1,4 @@
-package cn.wanxing.device.topology.entity;
+package cn.wanxing.device.status.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;

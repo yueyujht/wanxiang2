@@ -1,4 +1,4 @@
-package cn.wanxing.device.property.dto;
+package cn.wanxing.device.status.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotBlank;
