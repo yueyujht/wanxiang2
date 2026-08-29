@@ -63,7 +63,10 @@ public class BindingService {
         String method = request.getMethod();
         MethodResult result;
         switch (method) {
-            case "config" -> result = MethodResult.ok(handleConfig());
+            case "config" -> {
+                publishConfigReply(topic, request);
+                return;
+            }
             case "airport_bind_status" -> result = handleBindStatus(request.getData());
             case "airport_organization_get" -> result = handleOrganizationGet(request.getData());
             case "airport_organization_bind" -> result = handleOrganizationBind(request.getData());
@@ -79,15 +82,17 @@ public class BindingService {
 
     /**
      * License 校验：返回应用凭据（app_id / app_key / app_license / ntp 服务器）
+     *
+     * <p>注意：config 的回执结构与组织绑定不同，字段直接平铺在 data 下，没有 result/output 包裹。
      */
-    private ObjectNode handleConfig() {
-        // 组装 License 校验响应：把应用凭据下发给设备
-        ObjectNode output = objectMapper.createObjectNode();
-        output.put("ntp_server_host", djiProperties.getNtpServerHost());
-        output.put("app_id", djiProperties.getAppId());
-        output.put("app_key", djiProperties.getAppKey());
-        output.put("app_license", djiProperties.getAppLicense());
-        return output;
+    private void publishConfigReply(String topic, RequestsMessage request) {
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("ntp_server_host", djiProperties.getNtpServerHost());
+        data.put("app_id", djiProperties.getAppId());
+        data.put("app_key", djiProperties.getAppKey());
+        data.put("app_license", djiProperties.getAppLicense());
+        data.put("ntp_server_port", djiProperties.getNtpServerPort());
+        publishReplyData(topic, request, "config", data);
     }
 
     /**
@@ -161,9 +166,10 @@ public class BindingService {
             for (JsonNode device : bindDevices) {
                 String sn = device.path("sn").asText();
                 String bindCode = device.path("device_binding_code").asText();
+                String organizationId = device.path("organization_id").asText();
                 String callsign = device.path("device_callsign").asText();
                 String modelKey = device.path("device_model_key").asText();
-                int errCode = bindDevice(sn, bindCode, callsign, modelKey);
+                int errCode = bindDevice(sn, bindCode, organizationId, callsign, modelKey);
                 ObjectNode info = objectMapper.createObjectNode();
                 info.put("sn", sn);
                 info.put("err_code", errCode);
@@ -178,9 +184,17 @@ public class BindingService {
     /**
      * 将设备根据绑定码绑定到机构
      */
-    private int bindDevice(String sn, String bindCode, String callsign, String modelKey) {
-        // 1.查询机构
-        Org org = orgMapper.selectOne(new LambdaQueryWrapper<Org>().eq(Org::getBindCode, bindCode));
+    private int bindDevice(String sn, String bindCode, String organizationId, String callsign, String modelKey) {
+        // 1.查询机构：优先按绑定码查，查不到回退到 organization_id（官方 demo 的兜底逻辑）
+        Org org = (bindCode == null || bindCode.isEmpty()) ? null
+                : orgMapper.selectOne(new LambdaQueryWrapper<Org>().eq(Org::getBindCode, bindCode));
+        if (org == null && organizationId != null && !organizationId.isEmpty()) {
+            try {
+                org = orgMapper.selectById(Long.valueOf(organizationId));
+            } catch (NumberFormatException ignored) {
+                // 非法的 organization_id，忽略回退
+            }
+        }
         if (org == null) {
             return BindErrorCode.DEVICE_BINDING_FAILED;
         }
@@ -236,20 +250,24 @@ public class BindingService {
      * @param result 返回码：0 成功，非 0 错误（DJI 标准错误码）
      */
     private void publishReply(String topic, RequestsMessage request, String method, int result, ObjectNode output) {
-        // 1.组装回复信封：回传相同的 tid / bid / method（设备靠它们匹配请求与应答）
+        // 组织绑定类方法：data 部分 result 非 0 代表错误，output 放方法对应的结果
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("result", result);
+        data.set("output", output);
+        publishReplyData(topic, request, method, data);
+    }
+
+    /**
+     * 组装回复信封并发布到 requests_reply 主题（请求主题 + "_reply"）
+     */
+    private void publishReplyData(String topic, RequestsMessage request, String method, JsonNode data) {
+        // 回传相同的 tid / bid / method（设备靠它们匹配请求与应答）
         ObjectNode reply = objectMapper.createObjectNode();
         reply.put("tid", request.getTid());
         reply.put("bid", request.getBid());
         reply.put("timestamp", System.currentTimeMillis());
         reply.put("method", method);
-
-        // 2.数据部分：result 非 0 代表错误，output 放方法对应的结果
-        ObjectNode data = objectMapper.createObjectNode();
-        data.put("result", result);
-        data.set("output", output);
         reply.set("data", data);
-
-        // 3.发布到 requests_reply 主题（请求主题 + "_reply"）
         try {
             mqttPublisher.publish(topic + "_reply", objectMapper.writeValueAsString(reply));
         } catch (JsonProcessingException e) {

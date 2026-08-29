@@ -25,4 +25,7 @@ public class DjiProperties {
 
     /** NTP 时间服务器地址 */
     private String ntpServerHost;
+
+    /** NTP 服务端口号（默认 123） */
+    private Integer ntpServerPort = 123;
 }

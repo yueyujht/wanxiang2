@@ -34,6 +34,6 @@ public class MqttPublisher {
                 .setHeader(MqttHeaders.TOPIC, topic)
                 .build();
         outboundChannel.send(message);
-        log.debug("发布 MQTT 消息 topic={} payload={}", topic, payload);
+        log.info("发布 MQTT 消息 topic={} payload={}", topic, payload);
     }
 }

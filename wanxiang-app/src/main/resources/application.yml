@@ -59,6 +59,7 @@ wanxiang:
 #     app-key: your-app-key
 #     app-license: your-app-license
 #     ntp-server-host: your-ntp-server
+#     ntp-server-port: 123   # NTP 端口，默认 123
 
 # Sa-Token 配置（会话持久化到 Redis）
 sa-token:

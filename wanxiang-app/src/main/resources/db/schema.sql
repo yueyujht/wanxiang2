@@ -99,6 +99,9 @@ CREATE TABLE IF NOT EXISTS sys_device_state (
     cover_state             INT          DEFAULT NULL COMMENT '舱盖状态',
     mode_code               INT          DEFAULT NULL COMMENT '当前模式码',
     firmware_upgrade_status INT          DEFAULT NULL COMMENT '固件升级状态',
+    air_transfer_enable     TINYINT(1)   DEFAULT NULL COMMENT '空中回传开关',
+    silent_mode             INT          DEFAULT NULL COMMENT '机场静音模式 0非静音/1静音',
+    user_experience_improvement INT      DEFAULT NULL COMMENT '用户体验改善计划 0初始/1拒绝/2同意',
     updated_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_device_sn (device_sn)
