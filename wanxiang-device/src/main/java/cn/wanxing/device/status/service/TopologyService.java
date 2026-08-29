@@ -132,7 +132,10 @@ public class TopologyService {
                     mainDevice.getSn(), sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
             Assert.isTrue(deviceMapper.insert(childDevice) > 0, () -> new DeviceException(DeviceErrorCode.INSERT_FAILED));
         } else {
-            // 更新子设备
+            // 更新子设备；绑定建档/历史数据的子设备可能缺 parent_sn，拓扑上报时补全父子关系
+            if (childDevice.getParentSn() == null || !childDevice.getParentSn().equals(mainDevice.getSn())) {
+                childDevice.setParentSn(mainDevice.getSn());
+            }
             Device.updateForTopo(childDevice, sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
             Assert.isTrue(deviceMapper.updateById(childDevice) > 0, () -> new DeviceException(DeviceErrorCode.UPDATE_FAILED));
         }

@@ -19,7 +19,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 机场请求-应答服务：处理设备发来的 requests 消息，并回复 requests_reply。
@@ -34,6 +37,12 @@ import java.util.Arrays;
 public class BindingService {
 
     private static final int RESULT_SUCCESS = 0;
+
+    /** DJI 通用错误码：参数不合法（无法识别的请求回复此码，避免设备一直等应答超时） */
+    private static final int ERR_ILLEGAL_ARGUMENT = 200001;
+
+    /** 设备域：机场（airport_organization_bind 中机场先建档，飞机挂到机场下） */
+    private static final int DOMAIN_DOCK = 3;
 
     private final ObjectMapper objectMapper;
 
@@ -57,8 +66,13 @@ public class BindingService {
             log.warn("解析设备请求消息失败 topic={} payload={}", topic, payload, e);
             return;
         }
-        // 2.获取 method，根据 method 处理消息
+        // 2.获取 method，根据 method 处理消息（method 缺失/未知时回错误应答，设备侧能立即感知而不是等超时）
         String method = request.getMethod();
+        if (method == null) {
+            log.warn("requests 消息缺少 method topic={} tid={}", topic, request.getTid());
+            publishErrorReply(topic, request);
+            return;
+        }
         MethodResult result;
         switch (method) {
             case "config" -> {
@@ -69,7 +83,8 @@ public class BindingService {
             case "airport_organization_get" -> result = handleOrganizationGet(request.getData());
             case "airport_organization_bind" -> result = handleOrganizationBind(request.getData());
             default -> {
-                log.warn("未知的 requests method={}", method);
+                log.warn("未知的 requests method={} topic={}", method, topic);
+                publishErrorReply(topic, request);
                 return;
             }
         }
@@ -82,15 +97,29 @@ public class BindingService {
      * License 校验：返回应用凭据（app_id / app_key / app_license / ntp 服务器）
      *
      * <p>注意：config 的回执结构与组织绑定不同，字段直接平铺在 data 下，没有 result/output 包裹。
+     * 凭据未配置时回空字符串（官方协议三个 app 字段必填，null 会导致设备端解析异常），并 ERROR 日志提示。
      */
     private void publishConfigReply(String topic, RequestsMessage request) {
+        if (isBlank(djiProperties.getAppId()) || isBlank(djiProperties.getAppKey())
+                || isBlank(djiProperties.getAppLicense())) {
+            log.error("上云 License 未配置（wanxiang.dji.app-id/app-key/app-license），设备的 config 请求"
+                    + "将拿到空凭据，上云流程会失败 topic={}", topic);
+        }
         ObjectNode data = objectMapper.createObjectNode();
-        data.put("ntp_server_host", djiProperties.getNtpServerHost());
-        data.put("app_id", djiProperties.getAppId());
-        data.put("app_key", djiProperties.getAppKey());
-        data.put("app_license", djiProperties.getAppLicense());
+        data.put("ntp_server_host", orEmpty(djiProperties.getNtpServerHost()));
+        data.put("app_id", orEmpty(djiProperties.getAppId()));
+        data.put("app_key", orEmpty(djiProperties.getAppKey()));
+        data.put("app_license", orEmpty(djiProperties.getAppLicense()));
         data.put("ntp_server_port", djiProperties.getNtpServerPort());
         publishReplyData(topic, request, "config", data);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String orEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     /**
@@ -156,34 +185,61 @@ public class BindingService {
 
     /**
      * 将设备 SN 绑定到绑定码对应的机构
+     *
+     * <p>绑定流程对照官方 demo：机场（domain=3）先建档，同批飞机等子设备的 parent_sn 指向同批机场，
+     * 保证绑定后父子拓扑完整（否则设备树断裂，依赖 parent_sn 的网关解析也会失效）。
      */
     private MethodResult handleOrganizationBind(JsonNode data) {
-        // 遍历要绑定的设备，逐个执行绑定并记录结果
-        ArrayNode errInfos = objectMapper.createArrayNode();
+        ObjectNode output = objectMapper.createObjectNode();
+        ArrayNode errInfos = output.putArray("err_infos");
         JsonNode bindDevices = data == null ? null : data.get("bind_devices");
-        if (bindDevices != null && bindDevices.isArray()) {
-            for (JsonNode device : bindDevices) {
+        if (bindDevices == null || !bindDevices.isArray()) {
+            return MethodResult.ok(output);
+        }
+
+        // 第一遍绑机场并记住 SN，第二遍绑其余设备（飞机/负载），err_infos 仍按请求顺序输出
+        Map<String, Integer> results = new LinkedHashMap<>();
+        String dockSn = null;
+        for (JsonNode device : bindDevices) {
+            if (isDock(device)) {
                 String sn = device.path("sn").asText();
-                String bindCode = device.path("device_binding_code").asText();
-                String organizationId = device.path("organization_id").asText();
-                String callsign = device.path("device_callsign").asText();
-                String modelKey = device.path("device_model_key").asText();
-                int errCode = bindDevice(sn, bindCode, organizationId, callsign, modelKey);
-                ObjectNode info = objectMapper.createObjectNode();
-                info.put("sn", sn);
-                info.put("err_code", errCode);
-                errInfos.add(info);
+                results.put(sn, bindDevice(sn, device, null));
+                if (results.get(sn) == RESULT_SUCCESS && dockSn == null) {
+                    dockSn = sn;
+                }
             }
         }
-        ObjectNode output = objectMapper.createObjectNode();
-        output.set("err_infos", errInfos);
+        for (JsonNode device : bindDevices) {
+            if (!isDock(device)) {
+                String sn = device.path("sn").asText();
+                results.put(sn, bindDevice(sn, device, dockSn));
+            }
+        }
+        for (JsonNode device : bindDevices) {
+            String sn = device.path("sn").asText();
+            ObjectNode info = errInfos.addObject();
+            info.put("sn", sn);
+            info.put("err_code", results.getOrDefault(sn, BindErrorCode.DEVICE_BINDING_FAILED));
+        }
         return MethodResult.ok(output);
+    }
+
+    /** 按 device_model_key 的 domain 判断是否机场 */
+    private boolean isDock(JsonNode device) {
+        return applyModelKey(device.path("device_model_key").asText())[0] == DOMAIN_DOCK;
     }
 
     /**
      * 将设备根据绑定码绑定到机构
+     *
+     * @param parentSn 同批绑定的机场 SN（非机场设备挂到其下；无同批机场时为 null，等拓扑上报补全）
      */
-    private int bindDevice(String sn, String bindCode, String organizationId, String callsign, String modelKey) {
+    private int bindDevice(String sn, JsonNode device, String parentSn) {
+        String bindCode = device.path("device_binding_code").asText();
+        String organizationId = device.path("organization_id").asText();
+        String callsign = device.path("device_callsign").asText();
+        String modelKey = device.path("device_model_key").asText();
+
         // 1.查询机构：优先按绑定码查，查不到回退到 organization_id（官方 demo 的兜底逻辑）
         Org org = (bindCode == null || bindCode.isEmpty()) ? null
                 : orgMapper.selectOne(new LambdaQueryWrapper<Org>().eq(Org::getBindCode, bindCode));
@@ -198,25 +254,25 @@ public class BindingService {
             return BindErrorCode.DEVICE_BINDING_FAILED;
         }
 
-        // 2.解析设备名称
-        int[] modelKeys = applyModelKey(modelKey);
-        String modelName = DeviceModelEnum.resolveName(modelKeys[0], modelKeys[1], modelKeys[2]);
-
-        // 3.根据设备sn查询设备
+        // 2.根据设备sn查询设备
         // 这里有三种情况：a.没有设备，新建；b.有设备，是老设备解除绑定；c.有设备，但已经绑定到其他组织
         // 情况c，返回错误码
-        Device device = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
-        if(device != null && device.getOrgId() != null && !device.getOrgId().equals(org.getId())){
+        Device deviceEntity = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
+        if (deviceEntity != null && deviceEntity.getOrgId() != null && !deviceEntity.getOrgId().equals(org.getId())) {
             return BindErrorCode.NON_REPEATABLE_BINDING;
         }
-        if (device == null) {
-            // 情况a
-            device = Device.create(sn, callsign, org.getId(), modelKeys, modelName);
-            deviceMapper.insert(device);
+        if (deviceEntity == null) {
+            // 情况a：新建建档，携带父子关系与绑定时间
+            int[] modelKeys = applyModelKey(modelKey);
+            String modelName = DeviceModelEnum.resolveName(modelKeys[0], modelKeys[1], modelKeys[2]);
+            deviceEntity = Device.create(sn, callsign, org.getId(), modelKeys, modelName,
+                    parentSn, null, null, null, false);
+            deviceEntity.setBoundAt(LocalDateTime.now());
+            deviceMapper.insert(deviceEntity);
         } else {
             // 情况b
-            Device.updateForRebind(device, org.getId(), callsign);
-            deviceMapper.updateById(device);
+            Device.updateForRebind(deviceEntity, org.getId(), callsign);
+            deviceMapper.updateById(deviceEntity);
         }
         return 0;
     }
@@ -260,18 +316,32 @@ public class BindingService {
      * 组装回复信封并发布到 requests_reply 主题（请求主题 + "_reply"）
      */
     private void publishReplyData(String topic, RequestsMessage request, String method, JsonNode data) {
-        // 回传相同的 tid / bid / method（设备靠它们匹配请求与应答）
+        // 回传相同的 tid / bid / method（设备靠它们匹配请求与应答），gateway 字段对照官方示例回传
         ObjectNode reply = objectMapper.createObjectNode();
         reply.put("tid", request.getTid());
         reply.put("bid", request.getBid());
+        if (request.getGateway() != null) {
+            reply.put("gateway", request.getGateway());
+        }
         reply.put("timestamp", System.currentTimeMillis());
-        reply.put("method", method);
+        if (method != null) {
+            reply.put("method", method);
+        }
         reply.set("data", data);
         try {
             mqttPublisher.publish(topic + "_reply", objectMapper.writeValueAsString(reply), "回复设备请求 " + method);
         } catch (JsonProcessingException e) {
             log.error("序列化回复消息失败 method={}", method, e);
         }
+    }
+
+    /**
+     * 回复一条通用错误（如 method 缺失/未知），避免设备等应答直到超时
+     */
+    private void publishErrorReply(String topic, RequestsMessage request) {
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("result", ERR_ILLEGAL_ARGUMENT);
+        publishReplyData(topic, request, request.getMethod(), data);
     }
 
     /**
