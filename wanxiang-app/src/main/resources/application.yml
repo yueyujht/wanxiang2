@@ -51,15 +51,15 @@ wanxiang:
     password: 123456
     inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests,thing/product/+/property/set_reply,thing/product/+/services_reply
     client-id: wanxiang
+  # DJI 上云 API 应用凭据（创建「上云 API」应用后拿到，License 校验时下发给设备）
+  dji:
+    app-id: your-app-id
+    app-key: your-app-key
+    app-license: your-app-license
+    ntp-server-host: your-ntp-server
+    ntp-server-port: 123   # NTP 端口，默认 123
 
-# DJI 上云 API 应用凭据（创建「上云 API」应用后拿到，License 校验时下发给设备）
-# wanxiang:
-#   dji:
-#     app-id: your-app-id
-#     app-key: your-app-key
-#     app-license: your-app-license
-#     ntp-server-host: your-ntp-server
-#     ntp-server-port: 123   # NTP 端口，默认 123
+
 
 # Sa-Token 配置（会话持久化到 Redis）
 sa-token:

@@ -55,17 +55,10 @@ public class FirmwareService {
     /**
      * 下发固件升级任务：发布 ota_create 到 services 主题，并记录任务
      */
-    @ApiLog("固件升级")
+    @ApiLog("下发固件升级任务")
     public Boolean upgrade(String sn, FirmwareUpgradeRequest req) {
         // 1.校验设备存在 + 机构隔离
-        User operator = userContext.currentUser();
-        Device device = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
-        if (device == null) {
-            throw new DeviceException(DeviceErrorCode.DEVICE_NOT_FOUND);
-        }
-        if (operator.getOrgId() != null && !Objects.equals(operator.getOrgId(), device.getOrgId())) {
-            throw new DeviceException(DeviceErrorCode.OPERATION_FORBIDDEN);
-        }
+        checkAccess(sn);
 
         // 2.组装 ota_create 消息：tid 复用 traceId，设备回执原样带回，与本次操作全链路关联
         ObjectNode message = objectMapper.createObjectNode();
@@ -85,10 +78,10 @@ public class FirmwareService {
         d.put("firmware_upgrade_type", req.getUpgradeType());
         message.set("data", data);
 
-        // 3.发布到 services 主题（报文由 MqttPublisher 统一记录）
+        // 3.发布到 services 主题
         String topic = "thing/product/" + sn + "/services";
         try {
-            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message), "下发固件升级");
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message), "下发固件升级任务");
         } catch (JsonProcessingException e) {
             throw new DeviceException(DeviceErrorCode.FIRMWARE_UPGRADE_FAILED);
         }
@@ -154,9 +147,24 @@ public class FirmwareService {
      */
     @ApiLog("升级任务列表")
     public List<FirmwareTask> listTasks(String sn) {
+        checkAccess(sn);
         return firmwareTaskMapper.selectList(
                 new LambdaQueryWrapper<FirmwareTask>().eq(FirmwareTask::getDeviceSn, sn)
                         .orderByDesc(FirmwareTask::getId).last("LIMIT 20"));
+    }
+
+    /**
+     * 校验设备存在 + 机构隔离（升级任务归属设备，先校验再查询）
+     */
+    private void checkAccess(String sn) {
+        User operator = userContext.currentUser();
+        Device device = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
+        if (device == null) {
+            throw new DeviceException(DeviceErrorCode.DEVICE_NOT_FOUND);
+        }
+        if (operator.getOrgId() != null && !Objects.equals(operator.getOrgId(), device.getOrgId())) {
+            throw new DeviceException(DeviceErrorCode.OPERATION_FORBIDDEN);
+        }
     }
 
     /**

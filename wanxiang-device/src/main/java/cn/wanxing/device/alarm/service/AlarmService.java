@@ -12,6 +12,8 @@ import cn.wanxing.device.alarm.entity.Alarm;
 import cn.wanxing.device.alarm.mapper.AlarmMapper;
 import cn.wanxing.device.exception.DeviceErrorCode;
 import cn.wanxing.device.exception.DeviceException;
+import cn.wanxing.user.context.UserContext;
+import cn.wanxing.user.entity.User;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +37,8 @@ public class AlarmService {
     private final AlarmMapper alarmMapper;
 
     private final HmsDictionary hmsDictionary;
+
+    private final UserContext userContext;
 
     /**
      * 处理一条 events 消息：目前只处理 method=hms 的健康告警
@@ -70,11 +74,17 @@ public class AlarmService {
     }
 
     /**
-     * 告警列表：分页 + 按设备/等级筛选
+     * 告警列表：分页 + 按设备/等级筛选。
+     * 机构隔离：机构用户只能看到本机构设备的告警（子查询实时关联 sys_device，
+     * 不引入冗余字段也没有缓存一致性问题）；平台超管可看全部
      */
     @ApiLog("告警列表")
     public MultiResult<Alarm> listAlarms(AlarmQueryRequest req) {
+        User operator = userContext.currentUser();
         LambdaQueryWrapper<Alarm> qw = new LambdaQueryWrapper<>();
+        if (operator.getOrgId() != null) {
+            qw.apply("device_sn IN (SELECT sn FROM sys_device WHERE org_id = {0})", operator.getOrgId());
+        }
         qw.eq(req.getDeviceSn() != null && !req.getDeviceSn().isBlank(), Alarm::getDeviceSn, req.getDeviceSn());
         qw.eq(req.getLevel() != null, Alarm::getLevel, req.getLevel());
         qw.orderByDesc(Alarm::getCreatedAt);
