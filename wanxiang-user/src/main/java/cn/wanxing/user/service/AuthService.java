@@ -1,6 +1,7 @@
 package cn.wanxing.user.service;
 
 import cn.wanxing.common.log.ApiLog;
+import cn.wanxing.common.log.LogMaskUtils;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.user.constant.UserStateEnum;
@@ -72,8 +73,9 @@ public class AuthService {
         checkOrgEnabled(user.getOrgId());
 
         // 4.将验证码存到redis，过期时间
+        // 注意：mock 固定验证码仅开发期使用；接入真实短信网关后，验证码本身不得再落日志
         stringRedisTemplate.opsForValue().set(SMS_CODE_KEY + req.getPhone(), MOCK_CODE, CODE_TTL);
-        log.info("【mock】向手机号 {} 发送验证码：{}", req.getPhone(), MOCK_CODE);
+        log.info("【mock】发送登录验证码 phone={} code={}", LogMaskUtils.maskMobile(req.getPhone()), MOCK_CODE);
         return Boolean.TRUE;
     }
 

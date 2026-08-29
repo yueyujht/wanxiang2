@@ -2,6 +2,7 @@ package cn.wanxing.user.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
+import cn.wanxing.common.log.LogMaskUtils;
 import cn.wanxing.common.result.Result;
 import cn.wanxing.user.dto.request.PhoneLoginRequest;
 import cn.wanxing.user.dto.request.SendCodeRequest;
@@ -33,7 +34,7 @@ public class AuthController {
      */
     @PostMapping("/sendCode")
     public Result<Boolean> sendCode(@Valid @RequestBody SendCodeRequest req) {
-        log.info("手机号{}请求发送验证码", req.getPhone());
+        log.info("手机号 {} 请求发送验证码", LogMaskUtils.maskMobile(req.getPhone()));
         Boolean response = authService.sendCode(req);
         return Result.success(response);
     }
@@ -43,9 +44,9 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody PhoneLoginRequest req) {
-        log.info("手机号{}正在登陆",req.getPhone());
+        log.info("手机号 {} 正在登录", LogMaskUtils.maskMobile(req.getPhone()));
         LoginResponse response = authService.login(req);
-        log.info("手机号{}登陆成功",req.getPhone());
+        log.info("手机号 {} 登录成功", LogMaskUtils.maskMobile(req.getPhone()));
         return Result.success(response);
     }
 

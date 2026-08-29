@@ -1,7 +1,6 @@
 package cn.wanxing.device.alarm.service;
 
 import cn.wanxing.common.log.ApiLog;
-import cn.wanxing.device.mqtt.MqttLog;
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.common.result.MultiResult;
 import cn.wanxing.device.alarm.message.HmsAlarm;
@@ -43,7 +42,6 @@ public class AlarmService {
      * @param sn      主题中的设备序列号
      * @param payload 消息原文（JSON 字符串）
      */
-    @MqttLog("设备事件/告警")
     public void handleEvents(String sn, String payload) {
         // 1.读取消息
         HmsMessage message;

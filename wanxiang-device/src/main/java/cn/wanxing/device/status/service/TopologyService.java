@@ -8,7 +8,6 @@ import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.device.constant.DeviceStatusEnum;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
-import cn.wanxing.device.mqtt.MqttLog;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.device.status.entity.SubDeviceInfo;
 import cn.wanxing.device.status.entity.TopologyData;
@@ -46,7 +45,6 @@ public class TopologyService {
      * @param sn      从主题解析出的设备序列号（主设备，如机场）
      * @param payload 消息原文（JSON 字符串）
      */
-    @MqttLog("设备上下线")
     public void handleStatus(String sn, String payload) {
         // 1.解析mqtt消息
         TopologyMessage message;
@@ -58,7 +56,7 @@ public class TopologyService {
         }
         TopologyData data = message.getData();
         if (data == null) {
-            log.warn("设备{}发送异常的mqtt消息", sn);
+            log.warn("设备上下线消息缺少 data 字段 sn={}", sn);
             return;
         }
 
@@ -113,8 +111,7 @@ public class TopologyService {
         String topic = DeviceTopicConst.SYS_PRE + DeviceTopicConst.PRODUCT + sn
                 + DeviceTopicConst.STATUS_SUF + DeviceTopicConst.REPLY_SUF;
         try {
-            log.info("云端回复设备拓扑消息------");
-            mqttPublisher.publish(topic, objectMapper.writeValueAsString(reply));
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(reply), "回复设备上下线");
         } catch (JsonProcessingException e) {
             log.error("序列化 status_reply 失败 sn={}", sn, e);
         }

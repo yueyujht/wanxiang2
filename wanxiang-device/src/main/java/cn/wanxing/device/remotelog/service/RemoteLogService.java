@@ -1,7 +1,7 @@
 package cn.wanxing.device.remotelog.service;
 
 import cn.wanxing.common.log.ApiLog;
-import cn.wanxing.device.mqtt.MqttLog;
+import cn.wanxing.common.log.TraceContext;
 import cn.wanxing.device.config.OssProperties;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
@@ -129,7 +129,6 @@ public class RemoteLogService {
     /**
      * 处理 services_reply 回执：fileupload_list 回执推文件列表，其余记录结果
      */
-    @MqttLog("远程日志回执")
     public void handleReply(String sn, String payload) {
         JsonNode root;
         try {
@@ -163,7 +162,6 @@ public class RemoteLogService {
     /**
      * 处理文件上传进度（fileupload_progress，events 主题）：推送给前端
      */
-    @MqttLog("远程日志上传进度")
     public void handleProgress(String sn, String payload) {
         JsonNode root;
         try {
@@ -195,11 +193,12 @@ public class RemoteLogService {
     }
 
     /**
-     * 构造 services 消息信封（公共 tid/bid/timestamp/method）
+     * 构造 services 消息信封（公共 tid/bid/timestamp/method）：
+     * tid 复用 traceId，设备回执原样带回，与本次操作全链路关联
      */
     private ObjectNode baseMessage(String method) {
         ObjectNode message = objectMapper.createObjectNode();
-        message.put("tid", UUID.randomUUID().toString());
+        message.put("tid", TraceContext.traceIdOrNew());
         message.put("bid", UUID.randomUUID().toString());
         message.put("timestamp", System.currentTimeMillis());
         message.put("method", method);
@@ -207,16 +206,16 @@ public class RemoteLogService {
     }
 
     /**
-     * 发布到 services 主题
+     * 发布到 services 主题（报文由 MqttPublisher 统一记录）
      */
     private void publish(String sn, ObjectNode message) {
         String topic = "thing/product/" + sn + "/services";
+        String method = message.get("method").asText();
         try {
-            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message));
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message), "下发远程日志指令 " + method);
         } catch (JsonProcessingException e) {
             throw new DeviceException(DeviceErrorCode.PROPERTY_SET_FAILED);
         }
-        log.info("已下发远程日志命令 sn={} method={} mqtt消息：", sn, message.get("method").asText());
-        log.info(message.toString());
+        log.info("已下发远程日志命令 sn={} method={}", sn, method);
     }
 }

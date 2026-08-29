@@ -5,7 +5,6 @@ import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.exception.BindErrorCode;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
-import cn.wanxing.device.mqtt.MqttLog;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.mapper.OrgMapper;
@@ -49,7 +48,6 @@ public class BindingService {
     /**
      * 入口：解析请求信封，按 method 分发，最后回复 requests_reply
      */
-    @MqttLog("设备请求（绑定/License）")
     public void handleRequest(String topic, String payload) {
         // 1.将请求体转换成消息对象
         RequestsMessage request;
@@ -112,6 +110,7 @@ public class BindingService {
         return MethodResult.ok(output);
     }
 
+    // 构建绑定状态
     private ObjectNode buildBindStatusItem(String sn) {
         ObjectNode item = objectMapper.createObjectNode();
         item.put("sn", sn);
@@ -156,7 +155,7 @@ public class BindingService {
     }
 
     /**
-     * 执行绑定：把设备 SN 绑定到绑定码对应的机构
+     * 将设备 SN 绑定到绑定码对应的机构
      */
     private MethodResult handleOrganizationBind(JsonNode data) {
         // 遍历要绑定的设备，逐个执行绑定并记录结果
@@ -269,7 +268,7 @@ public class BindingService {
         reply.put("method", method);
         reply.set("data", data);
         try {
-            mqttPublisher.publish(topic + "_reply", objectMapper.writeValueAsString(reply));
+            mqttPublisher.publish(topic + "_reply", objectMapper.writeValueAsString(reply), "回复设备请求 " + method);
         } catch (JsonProcessingException e) {
             log.error("序列化回复消息失败 method={}", method, e);
         }

@@ -3,8 +3,9 @@
     <!-- 日志文件目录：默认 logs/，可用 -DLOG_PATH=/var/log/wanxiang 或配置 logging.file.path 覆盖 -->
     <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
 
-    <!-- 统一日志格式 -->
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"/>
+    <!-- 统一日志格式：%X{traceId} 为链路追踪号（HTTP 由 HttpRequestLogFilter 设置，MQTT 用设备报文 tid），
+         排查问题时 grep traceId 即可捞出一次请求/MQTT 消息的完整链路 -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"/>
 
     <!-- 控制台输出（开发用） -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
@@ -14,11 +15,13 @@
         </encoder>
     </appender>
 
-    <!-- 全量日志文件：按天滚动，文件名带日期（如 wanxiang.2026-08-28.log） -->
+    <!-- 全量日志文件：按天滚动 + 单文件 100MB 切分（如 wanxiang.2026-08-29.0.log），防止磁盘无上限增长 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/wanxiang.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/wanxiang.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -31,15 +34,59 @@
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>ERROR</level>
         </filter>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/wanxiang-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/wanxiang-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
+
+    <!-- MQTT 报文日志单独文件：设备收发报文独立落盘，排查设备接入问题时不用在主日志里翻。
+         MQTT 消息含 OSD 0.5Hz 高频遥测，套一层异步避免写盘阻塞业务线程 -->
+    <appender name="MQTT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/wanxiang-mqtt.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 异步包装：写盘交给独立线程，业务线程只入队（discardingThreshold=0 保证不丢事件） -->
+    <appender name="FILE_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="FILE"/>
+    </appender>
+
+    <appender name="ERROR_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="ERROR_FILE"/>
+    </appender>
+
+    <appender name="MQTT_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>4096</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="MQTT_FILE"/>
+    </appender>
+
+    <!-- MQTT 收发报文日志额外落 MQTT 文件（additivity 保持 true，主日志文件仍有时序完整上下文） -->
+    <logger name="cn.wanxing.device.mqtt">
+        <appender-ref ref="MQTT_ASYNC"/>
+    </logger>
 
     <!-- 第三方框架降噪（全局） -->
     <logger name="org.springframework" level="WARN"/>
@@ -51,16 +98,16 @@
         <logger name="cn.wanxing" level="DEBUG"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
+            <appender-ref ref="FILE_ASYNC"/>
         </root>
     </springProfile>
 
-    <!-- 生产环境（及默认无 profile）：只写文件 + 错误文件，应用 INFO -->
+    <!-- 生产环境（及默认无 profile）：只写文件（全量 + 错误 + MQTT），应用 INFO -->
     <springProfile name="!dev">
         <logger name="cn.wanxing" level="INFO"/>
         <root level="INFO">
-            <appender-ref ref="FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="FILE_ASYNC"/>
+            <appender-ref ref="ERROR_ASYNC"/>
         </root>
     </springProfile>
 </configuration>

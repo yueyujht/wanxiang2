@@ -2,6 +2,7 @@ package cn.wanxing.user.service;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.lang.Assert;
+import cn.wanxing.common.log.ApiLog;
 import cn.wanxing.common.request.PageRequest;
 import cn.wanxing.user.constant.EnableStatusEnum;
 import cn.wanxing.user.constant.UserRoleEnum;
@@ -53,6 +54,7 @@ public class UserService {
     /**
      * 用户分页列表：机构管理员只见本机构，超管可传 orgId 过滤（不传则全量）
      */
+    @ApiLog("用户列表")
     public UserPageResponse<UserVO> page(PageRequest req, Long orgId) {
         // 1.获取操作用户
         User operator = userContext.currentUser();
@@ -71,6 +73,7 @@ public class UserService {
     /**
      * 后台建账号（录入手机号）：机构管理员只能建在本机构，超管需指定机构
      */
+    @ApiLog("创建用户")
     public UserVO create(CreateUserRequest req) {
         // 1.获取操作用户
         User operator = userContext.currentUser();
@@ -97,6 +100,7 @@ public class UserService {
     /**
      * 分配角色（仅本机构范围内，且不可分配 super_admin）
      */
+    @ApiLog("分配角色")
     public Boolean assignRole(Long userId, String role) {
         // 1.查询、校验操作员
         User operator = userContext.currentUser();
@@ -125,6 +129,7 @@ public class UserService {
     /**
      * 修改状态（启用/禁用/锁定），仅本机构范围内，不允许操作自己
      */
+    @ApiLog("修改用户状态")
     public Boolean changeStatus(Long userId, String statusCode) {
         // 1.获取、校验操作员
         User operator = userContext.currentUser();

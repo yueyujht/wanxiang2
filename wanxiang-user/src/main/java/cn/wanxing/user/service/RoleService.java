@@ -1,5 +1,6 @@
 package cn.wanxing.user.service;
 
+import cn.wanxing.common.log.ApiLog;
 import cn.wanxing.user.constant.UserRoleEnum;
 import cn.wanxing.user.context.UserContext;
 import cn.wanxing.user.dto.vo.RoleVO;
@@ -26,6 +27,7 @@ public class RoleService {
     /**
      * 角色列表（机构隔离，SQL 层过滤）：
      */
+    @ApiLog("角色列表")
     public List<RoleVO> list() {
         User operator = userContext.currentUser();
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();

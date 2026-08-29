@@ -1,12 +1,12 @@
 package cn.wanxing.device.status.service;
 
 import cn.wanxing.common.log.ApiLog;
+import cn.wanxing.common.log.TraceContext;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.exception.DeviceErrorCode;
 import cn.wanxing.device.exception.DeviceException;
 import cn.wanxing.device.device.mapper.DeviceMapper;
-import cn.wanxing.device.mqtt.MqttLog;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.device.status.constant.DevicePropertyEnum;
 import cn.wanxing.device.status.dto.DevicePropertySchemaVO;
@@ -64,31 +64,29 @@ public class DevicePropertyService {
             throw new DeviceException(DeviceErrorCode.PROPERTY_VALUE_INVALID);
         }
 
-        // 3.构造属性设置消息：data = {属性名: 属性值}，带 bid/tid 供回执关联
+        // 3.构造属性设置消息：data = {属性名: 属性值}，tid 复用 traceId 供回执关联
         ObjectNode message = objectMapper.createObjectNode();
-        message.put("tid", UUID.randomUUID().toString());
+        message.put("tid", TraceContext.traceIdOrNew());
         message.put("bid", UUID.randomUUID().toString());
         message.put("timestamp", System.currentTimeMillis());
         ObjectNode data = objectMapper.createObjectNode();
         data.set(req.getProperty(), req.getValue());
         message.set("data", data);
 
-        // 4.发布到 property/set 主题
+        // 4.发布到 property/set 主题（报文由 MqttPublisher 统一记录）
         String topic = DeviceTopicConst.THING_PRE + DeviceTopicConst.PRODUCT + sn + DeviceTopicConst.PROPERTY_SET_SUF;
         try {
-            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message));
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message), "下发属性设置");
         } catch (JsonProcessingException e) {
             throw new DeviceException(DeviceErrorCode.PROPERTY_SET_FAILED);
         }
-        log.info("已下发设备属性设置命令 sn={} property={} value={} mqtt消息: ", sn, req.getProperty(), req.getValue());
-        log.info(message.toString());
+        log.info("已下发设备属性设置 sn={} property={} value={}", sn, req.getProperty(), req.getValue());
         return Boolean.TRUE;
     }
 
     /**
      * 处理属性设置回执：解析每个属性的结果码（result：0 成功 / 1 失败 / 2 超时）
      */
-    @MqttLog("属性设置回执")
     public void handleReply(String sn, String payload) {
         // 1.读取Json消息内容
         JsonNode reply;

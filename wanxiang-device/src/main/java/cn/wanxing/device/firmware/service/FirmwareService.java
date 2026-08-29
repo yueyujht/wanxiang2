@@ -1,7 +1,7 @@
 package cn.wanxing.device.firmware.service;
 
 import cn.wanxing.common.log.ApiLog;
-import cn.wanxing.device.mqtt.MqttLog;
+import cn.wanxing.common.log.TraceContext;
 import cn.hutool.core.lang.Assert;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
@@ -67,9 +67,9 @@ public class FirmwareService {
             throw new DeviceException(DeviceErrorCode.OPERATION_FORBIDDEN);
         }
 
-        // 2.组装 ota_create 消息
+        // 2.组装 ota_create 消息：tid 复用 traceId，设备回执原样带回，与本次操作全链路关联
         ObjectNode message = objectMapper.createObjectNode();
-        message.put("tid", UUID.randomUUID().toString());
+        message.put("tid", TraceContext.traceIdOrNew());
         message.put("bid", UUID.randomUUID().toString());
         message.put("timestamp", System.currentTimeMillis());
         message.put("method", "ota_create");
@@ -85,10 +85,10 @@ public class FirmwareService {
         d.put("firmware_upgrade_type", req.getUpgradeType());
         message.set("data", data);
 
-        // 3.发布到 services 主题
+        // 3.发布到 services 主题（报文由 MqttPublisher 统一记录）
         String topic = "thing/product/" + sn + "/services";
         try {
-            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message));
+            mqttPublisher.publish(topic, objectMapper.writeValueAsString(message), "下发固件升级");
         } catch (JsonProcessingException e) {
             throw new DeviceException(DeviceErrorCode.FIRMWARE_UPGRADE_FAILED);
         }
@@ -104,7 +104,6 @@ public class FirmwareService {
     /**
      * 处理固件升级进度（ota_progress，events 主题）：推送给前端，并更新任务状态
      */
-    @MqttLog("固件升级进度")
     public void handleProgress(String sn, String payload) {
         JsonNode root;
         try {
@@ -133,7 +132,6 @@ public class FirmwareService {
      * 处理 services_reply 回执（ota_create 的下发结果）
      * todo:没有处理result
      */
-    @MqttLog("固件升级回执")
     public void handleReply(String sn, String payload) {
         JsonNode root;
         try {
@@ -148,7 +146,7 @@ public class FirmwareService {
         }
         String status = root.path("data").path("output").path("status").asText(null);
         updateTaskStatus(sn, status);
-        log.info("固件升级完成");
+        log.info("固件升级指令回执 sn={} status={}", sn, status);
     }
 
     /**

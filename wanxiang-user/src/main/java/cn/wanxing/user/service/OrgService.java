@@ -2,6 +2,7 @@ package cn.wanxing.user.service;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.lang.Assert;
+import cn.wanxing.common.log.ApiLog;
 import cn.wanxing.user.constant.EnableStatusEnum;
 import cn.wanxing.user.dto.request.CreateOrgRequest;
 import cn.wanxing.user.dto.vo.OrgVO;
@@ -31,6 +32,7 @@ public class OrgService {
     /**
      * 机构列表
      */
+    @ApiLog("机构列表")
     public List<OrgVO> list() {
         return orgMapper.selectList(null).stream().map(OrgVO::from).toList();
     }
@@ -38,6 +40,7 @@ public class OrgService {
     /**
      * 创建机构，返回新机构 id
      */
+    @ApiLog("创建机构")
     public OrgVO create(CreateOrgRequest req) {
         checkNameUnique(req.getName(), null);
         checkCodeUnique(req.getCode(), null);
@@ -50,6 +53,7 @@ public class OrgService {
     /**
      * 更新机构（名称/编码/描述）
      */
+    @ApiLog("更新机构")
     public Boolean update(Long id, CreateOrgRequest req) {
         Org org = orgMapper.selectById(id);
         if (org == null) {
@@ -71,6 +75,7 @@ public class OrgService {
     /**
      * 查询机构信息
      */
+    @ApiLog("查询机构")
     public OrgVO getById(Long id) {
         Org org = orgMapper.selectById(id);
         if (org == null) {

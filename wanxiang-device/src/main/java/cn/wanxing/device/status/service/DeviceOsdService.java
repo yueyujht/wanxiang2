@@ -1,8 +1,6 @@
 package cn.wanxing.device.status.service;
 
 import cn.wanxing.common.log.ApiLog;
-import cn.wanxing.device.mqtt.MqttLog;
-import org.slf4j.event.Level;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,8 +46,7 @@ public class DeviceOsdService {
      * @param sn      主题中的设备序列号
      * @param payload 消息原文（JSON 字符串）
      */
-    @MqttLog(value = "OSD 遥测", level = Level.DEBUG)
-    public void handleOsd(String sn, String payload) throws JsonProcessingException {
+    public void handleOsd(String sn, String payload) {
         JsonNode root;
         try {
             root = objectMapper.readTree(payload);
@@ -63,8 +60,12 @@ public class DeviceOsdService {
         }
         // 1.缓存最新一条（覆盖旧值并重置过期时间）
         stringRedisTemplate.opsForValue().set(OSD_KEY_PREFIX + sn, data.toString(), OSD_TTL);
-        // 2.实时推送给订阅了该设备的 WebSocket 客户端
-        messagingTemplate.convertAndSend(OSD_TOPIC_PREFIX + sn + "/osd", objectMapper.writeValueAsString(data));
+        // 2.实时推送给订阅了该设备的 WebSocket 客户端（推送失败不影响缓存与后续消息）
+        try {
+            messagingTemplate.convertAndSend(OSD_TOPIC_PREFIX + sn + "/osd", objectMapper.writeValueAsString(data));
+        } catch (JsonProcessingException e) {
+            log.warn("OSD 推送序列化失败 sn={}", sn, e);
+        }
     }
 
     /**
