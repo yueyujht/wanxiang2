@@ -16,6 +16,7 @@ import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.entity.User;
 import cn.wanxing.user.mapper.OrgMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -144,9 +145,11 @@ public class DeviceService {
     @ApiLog("解绑设备")
     public void unbind(String sn) {
         Device device = getDeviceBySn(sn);
-        device.setOrgId(null);
-        device.setBoundAt(null);
-        deviceMapper.updateById(device);
+        // org_id/bound_at 要置空：updateById 默认策略（NOT_NULL）会跳过 null 字段，必须用 UpdateWrapper 显式 set null
+        deviceMapper.update(null, new LambdaUpdateWrapper<Device>()
+                .eq(Device::getId, device.getId())
+                .set(Device::getOrgId, null)
+                .set(Device::getBoundAt, null));
     }
 
     /**

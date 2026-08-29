@@ -68,9 +68,9 @@ public class TopologyService {
             return;
         }
 
-        // 3.更新主设备状态（在线时记录最近上线时间）
-        boolean online = data.getSubDevices() != null && !data.getSubDevices().isEmpty();
-        Device.updateForTopo(mainDevice, data.getDeviceSecret(), data.getNonce(), data.getThingVersion(), online);
+        // 3.更新主设备状态：能发来 status 消息说明网关（机场）本身在线——
+        //   sub_devices 为空只代表子设备离线，不能据此把机场置离线（官方语义，demo updateTopoOffline 同）
+        Device.updateForTopo(mainDevice, data.getDeviceSecret(), data.getNonce(), data.getThingVersion(), true);
         Assert.isTrue(deviceMapper.updateById(mainDevice) > 0, () -> new DeviceException(DeviceErrorCode.UPDATE_FAILED));
 
         // 4.子设备对账：以 sub_devices 列表为准（列表里 upsert 在线，不在列表里的置离线）
@@ -79,14 +79,13 @@ public class TopologyService {
         for (SubDeviceInfo sub : subDevices) {
             upsertChild(mainDevice, sub);
         }
-        // 4.2 遍历 DB 里已有的子设备，不在消息列表里的标记离线
+        // 4.2 遍历 DB 里已有的子设备，不在消息列表里的标记离线（已是离线的跳过，避免重复写库）
         Set<String> onlineSns = subDevices.stream().map(SubDeviceInfo::getSn).collect(Collectors.toSet());
         List<Device> childDevices = deviceMapper.selectList(
                 new LambdaQueryWrapper<Device>().eq(Device::getParentSn, sn));
         for (Device childDevice : childDevices) {
-            if (!onlineSns.contains(childDevice.getSn())) {
+            if (!onlineSns.contains(childDevice.getSn()) && childDevice.getStatus() != DeviceStatusEnum.OFFLINE) {
                 Device.updateForTopo(childDevice, false);
-                childDevice.setStatus(DeviceStatusEnum.OFFLINE);
                 deviceMapper.updateById(childDevice);
             }
         }
