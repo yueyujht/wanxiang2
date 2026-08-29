@@ -1,7 +1,10 @@
 package cn.wanxing.device.status.service;
 
+import cn.wanxing.device.device.entity.Device;
+import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.device.status.mapper.DeviceStateMapper;
 import cn.wanxing.device.status.entity.DeviceState;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Service;
 public class DeviceStateService {
 
     private final DeviceStateMapper deviceStateMapper;
+
+    private final DeviceMapper deviceMapper;
 
     private final ObjectMapper objectMapper;
 
@@ -45,7 +50,14 @@ public class DeviceStateService {
             return;
         }
 
-        // 2.把最新状态 UPSERT 到 sys_device_state（增量字段由 SQL 的 COALESCE 保证不覆盖历史值）
+        // 2.未建档设备不落库（避免 sys_device_state 出现垃圾行；建档走绑定/拓扑流程）
+        Device device = deviceMapper.selectOne(new LambdaQueryWrapper<Device>().eq(Device::getSn, sn));
+        if (device == null) {
+            log.warn("收到未建档设备的 state 消息，已忽略 sn={}", sn);
+            return;
+        }
+
+        // 3.把最新状态 UPSERT 到 sys_device_state（增量字段由 SQL 的 COALESCE 保证不覆盖历史值）
         DeviceState deviceState = DeviceState.update(sn, data);
         deviceStateMapper.upsert(deviceState);
     }

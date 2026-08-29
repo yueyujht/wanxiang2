@@ -81,7 +81,12 @@ public class DeviceService {
                     .or().like(Device::getName, req.getKeyword()));
         }
 
-        // 5.分页查询
+        // 5.默认排序：在线优先（ONLINE > OFFLINE 按字典序），再按最近上线时间、id 倒序，保证分页稳定
+        qw.orderByDesc(Device::getStatus)
+                .orderByDesc(Device::getLastOnlineAt)
+                .orderByDesc(Device::getId);
+
+        // 6.分页查询
         Page<Device> page = deviceMapper.selectPage(new Page<>(req.getCurrentPage(), req.getPageSize()), qw);
         List<Device> devices = page.getRecords();
         if (devices.isEmpty()) {
@@ -89,7 +94,7 @@ public class DeviceService {
                     req.getCurrentPage(), req.getPageSize());
         }
 
-        // 6.批量加载机构名，避免逐条查询（N+1 问题）
+        // 7.批量加载机构名，避免逐条查询（N+1 问题）
         Set<Long> orgIds = devices.stream()
                 .map(Device::getOrgId)
                 .filter(Objects::nonNull)
@@ -99,7 +104,7 @@ public class DeviceService {
                 : orgMapper.selectBatchIds(orgIds).stream()
                         .collect(Collectors.toMap(Org::getId, Function.identity()));
 
-        // 7.组装 VO，填充机构名
+        // 8.组装 VO，填充机构名
         List<DeviceVO> vos = devices.stream().map(device -> {
             DeviceVO vo = DeviceVO.from(device);
             Org org = orgMap.get(device.getOrgId());
@@ -140,7 +145,8 @@ public class DeviceService {
     }
 
     /**
-     * 解绑设备：把设备从机构移除（org_id 置空，绑定时间清空）
+     * 解绑设备：把设备从机构移除（org_id 置空，绑定时间清空）；
+     * 解绑机场时挂在其下的子设备一并解绑，避免出现「父设备已解绑、子设备还在机构」的不一致
      */
     @ApiLog("解绑设备")
     public void unbind(String sn) {
@@ -148,6 +154,11 @@ public class DeviceService {
         // org_id/bound_at 要置空：updateById 默认策略（NOT_NULL）会跳过 null 字段，必须用 UpdateWrapper 显式 set null
         deviceMapper.update(null, new LambdaUpdateWrapper<Device>()
                 .eq(Device::getId, device.getId())
+                .set(Device::getOrgId, null)
+                .set(Device::getBoundAt, null));
+        // 子设备级联解绑（非机场设备没有子设备，匹配 0 行无副作用）
+        deviceMapper.update(null, new LambdaUpdateWrapper<Device>()
+                .eq(Device::getParentSn, device.getSn())
                 .set(Device::getOrgId, null)
                 .set(Device::getBoundAt, null));
     }

@@ -71,6 +71,16 @@ public class TopologyService {
         // 3.更新主设备状态：能发来 status 消息说明网关（机场）本身在线——
         //   sub_devices 为空只代表子设备离线，不能据此把机场置离线（官方语义，demo updateTopoOffline 同）
         Device.updateForTopo(mainDevice, data.getDeviceSecret(), data.getNonce(), data.getThingVersion(), true);
+        // 主设备的型号三元组随拓扑回写（换型号等场景），消息缺省时保持原值
+        if (data.getDomain() != null) {
+            mainDevice.setDomain(data.getDomain());
+        }
+        if (data.getType() != null) {
+            mainDevice.setType(data.getType());
+        }
+        if (data.getSubType() != null) {
+            mainDevice.setSubType(data.getSubType());
+        }
         Assert.isTrue(deviceMapper.updateById(mainDevice) > 0, () -> new DeviceException(DeviceErrorCode.UPDATE_FAILED));
 
         // 4.子设备对账：以 sub_devices 列表为准（列表里 upsert 在线，不在列表里的置离线）
@@ -129,11 +139,17 @@ public class TopologyService {
             String modelName = DeviceModelEnum.resolveName(modelKeys[0], modelKeys[1], modelKeys[2]);
             childDevice = Device.create(sub.getSn(), "", mainDevice.getOrgId(), modelKeys, modelName,
                     mainDevice.getSn(), sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
+            // 负载挂载位置（A/B）入库
+            childDevice.setDeviceIndex(sub.getIndex());
             Assert.isTrue(deviceMapper.insert(childDevice) > 0, () -> new DeviceException(DeviceErrorCode.INSERT_FAILED));
         } else {
             // 更新子设备；绑定建档/历史数据的子设备可能缺 parent_sn，拓扑上报时补全父子关系
             if (childDevice.getParentSn() == null || !childDevice.getParentSn().equals(mainDevice.getSn())) {
                 childDevice.setParentSn(mainDevice.getSn());
+            }
+            // 挂载位置变化时更新
+            if (sub.getIndex() != null && !sub.getIndex().equals(childDevice.getDeviceIndex())) {
+                childDevice.setDeviceIndex(sub.getIndex());
             }
             Device.updateForTopo(childDevice, sub.getDeviceSecret(), sub.getNonce(), sub.getThingVersion(), true);
             Assert.isTrue(deviceMapper.updateById(childDevice) > 0, () -> new DeviceException(DeviceErrorCode.UPDATE_FAILED));
