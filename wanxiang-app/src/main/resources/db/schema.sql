@@ -124,6 +124,25 @@ CREATE TABLE IF NOT EXISTS sys_alarm (
     KEY idx_created_at (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '设备告警表';
 
+CREATE TABLE IF NOT EXISTS sys_airsense_warning (
+    id                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    device_sn         VARCHAR(64)  NOT NULL COMMENT '上报的网关设备 SN（机场）',
+    icao              VARCHAR(16)  DEFAULT NULL COMMENT 'ICAO 民用航空飞机地址',
+    warning_level     INT          DEFAULT NULL COMMENT '危险等级 0 无危险 / 1-4 等级一至四（>=3 建议无人机避让）',
+    latitude          DOUBLE       DEFAULT NULL COMMENT '纬度（6 位小数）',
+    longitude         DOUBLE       DEFAULT NULL COMMENT '经度（6 位小数）',
+    altitude          INT          DEFAULT NULL COMMENT '绝对高度（米）',
+    altitude_type     INT          DEFAULT NULL COMMENT '高度类型 0 椭球高 / 1 海拔高',
+    heading           DOUBLE       DEFAULT NULL COMMENT '航向（度，1 位小数）',
+    relative_altitude INT          DEFAULT NULL COMMENT '航班相对无人机高度（米）',
+    vert_trend        INT          DEFAULT NULL COMMENT '垂直趋势 0 不变 / 1 上升 / 2 下降',
+    distance          INT          DEFAULT NULL COMMENT '航班与无人机的水平距离（米）',
+    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '告警时间',
+    PRIMARY KEY (id),
+    KEY idx_device_sn (device_sn),
+    KEY idx_created_at (created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'AirSense 空域告警表（ADS-B 检测到的周边航班）';
+
 CREATE TABLE IF NOT EXISTS sys_firmware_task (
     id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     device_sn      VARCHAR(64)  NOT NULL COMMENT '设备 SN',

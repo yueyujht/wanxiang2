@@ -27,6 +27,9 @@ public enum MqttScenario {
     /** events：远程日志上传进度 */
     REMOTE_LOG_PROGRESS("远程日志上传进度"),
 
+    /** events：AirSense 空域告警（ADS-B 周边航班） */
+    AIRSENSE_WARNING("AirSense 空域告警"),
+
     /** services_reply：ota_create 回执 */
     FIRMWARE_REPLY("固件升级回执"),
 
@@ -99,6 +102,9 @@ public enum MqttScenario {
         }
         if ("fileupload_progress".equals(method)) {
             return REMOTE_LOG_PROGRESS;
+        }
+        if ("airsense_warning".equals(method)) {
+            return AIRSENSE_WARNING;
         }
         return UNKNOWN;
     }

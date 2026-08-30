@@ -1,6 +1,7 @@
 package cn.wanxing.device.mqtt;
 
 import cn.wanxing.common.log.TraceContext;
+import cn.wanxing.device.airsense.service.AirsenseService;
 import cn.wanxing.device.alarm.service.AlarmService;
 import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
@@ -50,6 +51,8 @@ public class DeviceMessageHandler {
     private final DeviceOsdService osdService;
 
     private final AlarmService alarmService;
+
+    private final AirsenseService airsenseService;
 
     private final FirmwareService firmwareService;
 
@@ -117,7 +120,8 @@ public class DeviceMessageHandler {
     }
 
     /**
-     * events 主题按 method 分发：hms 告警，ota_progress 固件升级进度，fileupload_progress 远程日志进度
+     * events 主题按 method 分发：hms 告警，ota_progress 固件升级进度，fileupload_progress 远程日志进度，
+     * airsense_warning 空域告警（ADS-B 周边航班）
      */
     private void routeEvents(String sn, String method, String body) {
         if ("hms".equals(method)) {
@@ -126,6 +130,8 @@ public class DeviceMessageHandler {
             firmwareService.handleProgress(sn, body);
         } else if ("fileupload_progress".equals(method)) {
             remoteLogService.handleProgress(sn, body);
+        } else if ("airsense_warning".equals(method)) {
+            airsenseService.handleWarning(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 events method={} sn={}", method, sn);
         }
