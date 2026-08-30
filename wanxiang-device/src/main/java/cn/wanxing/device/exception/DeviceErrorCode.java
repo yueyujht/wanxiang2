@@ -16,7 +16,9 @@ public enum DeviceErrorCode implements ErrorCode {
     UPDATE_FAILED("UPDATE_FAILED", "更新设备失败"),
     PROPERTY_SET_FAILED("PROPERTY_SET_FAILED", "属性设置下发失败"),
     PROPERTY_VALUE_INVALID("PROPERTY_VALUE_INVALID", "属性值不合法"),
-    FIRMWARE_UPGRADE_FAILED("FIRMWARE_UPGRADE_FAILED", "固件升级下发失败");
+    FIRMWARE_UPGRADE_FAILED("FIRMWARE_UPGRADE_FAILED", "固件升级下发失败"),
+    LIVE_URL_MISSING("LIVE_URL_MISSING", "直播推流地址未配置"),
+    LIVE_COMMAND_FAILED("LIVE_COMMAND_FAILED", "直播指令下发失败");
 
     private final String code;
 

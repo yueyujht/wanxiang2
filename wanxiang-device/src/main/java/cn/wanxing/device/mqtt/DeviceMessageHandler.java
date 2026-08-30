@@ -6,6 +6,7 @@ import cn.wanxing.device.alarm.service.AlarmService;
 import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
 import cn.wanxing.device.firmware.service.FirmwareService;
+import cn.wanxing.device.live.service.LiveService;
 import cn.wanxing.device.status.service.DevicePropertyService;
 import cn.wanxing.device.remotelog.service.RemoteLogService;
 import cn.wanxing.device.status.service.DeviceOsdService;
@@ -57,6 +58,8 @@ public class DeviceMessageHandler {
     private final FirmwareService firmwareService;
 
     private final RemoteLogService remoteLogService;
+
+    private final LiveService liveService;
 
     private final ObjectMapper objectMapper;
 
@@ -138,13 +141,15 @@ public class DeviceMessageHandler {
     }
 
     /**
-     * services_reply 主题按 method 分发：ota_create 固件，fileupload_* 远程日志
+     * services_reply 主题按 method 分发：ota_create 固件，fileupload_* 远程日志，live_* 直播
      */
     private void routeServicesReply(String sn, String method, String body) {
         if ("ota_create".equals(method)) {
             firmwareService.handleReply(sn, body);
         } else if (method != null && method.startsWith("fileupload_")) {
             remoteLogService.handleReply(sn, body);
+        } else if (method != null && method.startsWith("live_")) {
+            liveService.handleReply(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 services_reply method={} sn={}", method, sn);
         }

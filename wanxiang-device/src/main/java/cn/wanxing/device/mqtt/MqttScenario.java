@@ -36,6 +36,9 @@ public enum MqttScenario {
     /** services_reply：fileupload_* 回执 */
     REMOTE_LOG_REPLY("远程日志回执"),
 
+    /** services_reply：live_* 直播指令回执 */
+    LIVE_REPLY("直播回执"),
+
     /** requests：config（License 校验） */
     LICENSE_CONFIG("License 配置请求"),
 
@@ -118,6 +121,9 @@ public enum MqttScenario {
         }
         if (method.startsWith("fileupload_")) {
             return REMOTE_LOG_REPLY;
+        }
+        if (method.startsWith("live_")) {
+            return LIVE_REPLY;
         }
         return UNKNOWN;
     }

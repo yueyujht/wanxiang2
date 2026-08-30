@@ -59,6 +59,13 @@ wanxiang:
     ntp-server-host: your-ntp-server
     ntp-server-port: 123   # NTP 端口，默认 123
 
+  # 直播推流兜底配置：开始直播请求未显式传 url 时按协议类型取用。
+  # RTMP/WHIP 的流名自动取 video_id（/ 替换为 _），GB28181 为服务器端固定参数串
+  live:
+    rtmp-url: rtmp://127.0.0.1:1935/live        # RTMP 推流基址（如 SRS/ZLMediaKit），实际推流地址 = 基址/流名
+    whip-url: http://127.0.0.1:1985/rtc/v1/whip # WebRTC WHIP 端点前缀，实际地址 = 前缀?app=live&stream=流名
+    gb28181-url: ""                             # GB28181 完整参数串（serverIP=..&serverPort=..&serverID=..&agentID=..&agentPassword=..&localPort=..&channel=..）
+
 
 
 # Sa-Token 配置（会话持久化到 Redis）
