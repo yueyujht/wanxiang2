@@ -6,6 +6,7 @@ import cn.wanxing.device.alarm.service.AlarmService;
 import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
 import cn.wanxing.device.firmware.service.FirmwareService;
+import cn.wanxing.device.flightarea.service.FlightAreaService;
 import cn.wanxing.device.live.service.LiveService;
 import cn.wanxing.device.media.service.MediaService;
 import cn.wanxing.device.status.service.DevicePropertyService;
@@ -63,6 +64,8 @@ public class DeviceMessageHandler {
     private final LiveService liveService;
 
     private final MediaService mediaService;
+
+    private final FlightAreaService flightAreaService;
 
     private final ObjectMapper objectMapper;
 
@@ -143,13 +146,18 @@ public class DeviceMessageHandler {
             mediaService.handleUploadCallback(sn, body);
         } else if ("highest_priority_upload_flighttask_media".equals(method)) {
             mediaService.handlePriorityQuery(sn, body);
+        } else if ("flight_areas_sync_progress".equals(method)) {
+            flightAreaService.handleSyncProgress(sn, body);
+        } else if ("flight_areas_drone_location".equals(method)) {
+            flightAreaService.handleDroneLocation(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 events method={} sn={}", method, sn);
         }
     }
 
     /**
-     * services_reply 主题按 method 分发：ota_create 固件，fileupload_* 远程日志，live_* 直播
+     * services_reply 主题按 method 分发：ota_create 固件，fileupload_* 远程日志，live_* 直播，
+     * flight_areas_update 自定义飞行区同步
      */
     private void routeServicesReply(String sn, String method, String body) {
         if ("ota_create".equals(method)) {
@@ -158,6 +166,8 @@ public class DeviceMessageHandler {
             remoteLogService.handleReply(sn, body);
         } else if (method != null && method.startsWith("live_")) {
             liveService.handleReply(sn, body);
+        } else if ("flight_areas_update".equals(method)) {
+            flightAreaService.handleUpdateReply(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 services_reply method={} sn={}", method, sn);
         }

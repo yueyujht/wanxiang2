@@ -169,6 +169,18 @@ CREATE TABLE IF NOT EXISTS sys_media_file (
     KEY idx_created_at (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '媒体文件表（设备上传到对象存储后的元数据）';
 
+CREATE TABLE IF NOT EXISTS sys_flight_area_file (
+    id         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    org_id     BIGINT       DEFAULT NULL COMMENT '所属机构 ID（NULL=全局，全部机构可见）',
+    name       VARCHAR(128) NOT NULL COMMENT '文件名（如 geofence_park_a.json）',
+    content    LONGTEXT     NOT NULL COMMENT '文件内容（官方自定义飞行区 JSON 格式：作业区/限飞区多边形）',
+    checksum   VARCHAR(64)  NOT NULL COMMENT '文件 SHA256 签名（设备用于版本判断）',
+    size       INT          NOT NULL COMMENT '文件大小（字节）',
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自定义飞行区文件（平台生成，设备经 flight_areas_get 拉取）';
+
 CREATE TABLE IF NOT EXISTS sys_firmware_task (
     id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     device_sn      VARCHAR(64)  NOT NULL COMMENT '设备 SN',

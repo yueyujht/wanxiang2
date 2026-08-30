@@ -66,6 +66,11 @@ wanxiang:
     whip-url: http://127.0.0.1:1985/rtc/v1/whip # WebRTC WHIP 端点前缀，实际地址 = 前缀?app=live&stream=流名
     gb28181-url: ""                             # GB28181 完整参数串（serverIP=..&serverPort=..&serverID=..&agentID=..&agentPassword=..&localPort=..&channel=..）
 
+  # 自定义飞行区：飞行区文件存平台库，设备经 flight_areas_get 拿到下载地址后从平台 HTTP 下载，
+  # 该地址必须是机场网络可达的平台地址（内网部署填平台内网 IP）
+  flight-area:
+    base-url: http://127.0.0.1:8080
+
   # 对象存储（媒体文件/远程日志由设备直传，未配置则媒体上传功能不可用）：
   # oss:
   #   provider: minio                             # ali / aws / minio

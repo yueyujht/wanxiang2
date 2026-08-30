@@ -60,6 +60,15 @@ public enum MqttScenario {
     /** events：媒体高优先级任务查询 */
     MEDIA_PRIORITY_QUERY("媒体优先级查询"),
 
+    /** events：自定义飞行区文件同步进度 */
+    FLIGHT_AREAS_SYNC_PROGRESS("飞行区同步进度"),
+
+    /** events：自定义飞行区告警（飞行器位置） */
+    FLIGHT_AREAS_WARNING("飞行区告警"),
+
+    /** services_reply：flight_areas_update 飞行区同步回执 */
+    FLIGHT_AREAS_REPLY("飞行区同步回执"),
+
     /** 无法归类的消息（未知主题或未知 method） */
     UNKNOWN("未知消息");
 
@@ -125,6 +134,12 @@ public enum MqttScenario {
         if ("highest_priority_upload_flighttask_media".equals(method)) {
             return MEDIA_PRIORITY_QUERY;
         }
+        if ("flight_areas_sync_progress".equals(method)) {
+            return FLIGHT_AREAS_SYNC_PROGRESS;
+        }
+        if ("flight_areas_drone_location".equals(method)) {
+            return FLIGHT_AREAS_WARNING;
+        }
         return UNKNOWN;
     }
 
@@ -140,6 +155,9 @@ public enum MqttScenario {
         }
         if (method.startsWith("live_")) {
             return LIVE_REPLY;
+        }
+        if ("flight_areas_update".equals(method)) {
+            return FLIGHT_AREAS_REPLY;
         }
         return UNKNOWN;
     }

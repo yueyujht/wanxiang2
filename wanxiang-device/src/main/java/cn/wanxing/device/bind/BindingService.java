@@ -6,6 +6,7 @@ import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.exception.BindErrorCode;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
+import cn.wanxing.device.flightarea.service.FlightAreaService;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.user.entity.Org;
@@ -29,9 +30,9 @@ import java.util.Map;
 /**
  * 机场请求-应答服务：处理设备发来的 requests 消息，并回复 requests_reply。
  *
- * <p>处理五种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
+ * <p>处理六种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
  * airport_organization_get（按绑定码查组织）、airport_organization_bind（执行绑定）、
- * storage_config_get（媒体上传临时凭证下发）。
+ * storage_config_get（媒体上传临时凭证下发）、flight_areas_get（自定义飞行区文件获取，业务在 FlightAreaService）。
  */
 @Slf4j
 @Service
@@ -58,6 +59,8 @@ public class BindingService {
     private final DjiProperties djiProperties;
 
     private final OssProperties ossProperties;
+
+    private final FlightAreaService flightAreaService;
 
     /**
      * 入口：解析请求信封，按 method 分发，最后回复 requests_reply
@@ -94,6 +97,7 @@ public class BindingService {
                 publishStorageConfigReply(topic, request);
                 return;
             }
+            case "flight_areas_get" -> result = MethodResult.ok(flightAreaService.buildFilesOutput(gatewaySn(topic)));
             case "airport_bind_status" -> result = handleBindStatus(request.getData());
             case "airport_organization_get" -> result = handleOrganizationGet(request.getData());
             case "airport_organization_bind" -> result = handleOrganizationBind(request.getData());
@@ -165,14 +169,15 @@ public class BindingService {
         credentials.put("expire", System.currentTimeMillis() + 3600000L);
         credentials.put("security_token", ossProperties.getSecurityToken());
         output.put("object_key_prefix", isBlank(ossProperties.getObjectKeyPrefix())
-                ? defaultObjectKeyPrefix(topic) : ossProperties.getObjectKeyPrefix());
+                ? gatewaySn(topic) : ossProperties.getObjectKeyPrefix());
         publishReply(topic, request, "storage_config_get", RESULT_SUCCESS, output);
     }
 
     /**
-     * 缺省的存储目录前缀：取主题中的网关 SN（thing/product/{sn}/requests），实现桶内按机场隔离
+     * 从主题解析网关 SN（thing/product/{sn}/requests）：storage_config_get 的缺省目录前缀、
+     * flight_areas_get 的机构过滤都依赖它
      */
-    private String defaultObjectKeyPrefix(String topic) {
+    private String gatewaySn(String topic) {
         int start = topic.indexOf(DeviceTopicConst.PRODUCT);
         if (start < 0) {
             return "";

@@ -19,7 +19,9 @@ public enum DeviceErrorCode implements ErrorCode {
     FIRMWARE_UPGRADE_FAILED("FIRMWARE_UPGRADE_FAILED", "固件升级下发失败"),
     LIVE_URL_MISSING("LIVE_URL_MISSING", "直播推流地址未配置"),
     LIVE_COMMAND_FAILED("LIVE_COMMAND_FAILED", "直播指令下发失败"),
-    MEDIA_FILE_NOT_FOUND("MEDIA_FILE_NOT_FOUND", "媒体文件不存在");
+    MEDIA_FILE_NOT_FOUND("MEDIA_FILE_NOT_FOUND", "媒体文件不存在"),
+    FLIGHT_AREA_FILE_NOT_FOUND("FLIGHT_AREA_FILE_NOT_FOUND", "飞行区文件不存在"),
+    FLIGHT_AREA_SYNC_FAILED("FLIGHT_AREA_SYNC_FAILED", "飞行区同步指令下发失败");
 
     private final String code;
 
