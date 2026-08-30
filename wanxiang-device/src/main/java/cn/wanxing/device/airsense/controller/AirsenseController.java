@@ -7,16 +7,18 @@ import cn.wanxing.device.airsense.dto.AirsenseQueryRequest;
 import cn.wanxing.device.airsense.entity.AirsenseWarning;
 import cn.wanxing.device.airsense.service.AirsenseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * AirSense 空域告警接口
+ * AirSense 空域告警接口（仅配置 MQTT 后生效）
  */
 @RestController
 @RequestMapping("/device/airsense")
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "wanxiang.mqtt", name = "broker-url")
 public class AirsenseController {
 
     private final AirsenseService airsenseService;

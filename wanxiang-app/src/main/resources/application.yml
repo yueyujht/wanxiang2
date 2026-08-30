@@ -66,6 +66,17 @@ wanxiang:
     whip-url: http://127.0.0.1:1985/rtc/v1/whip # WebRTC WHIP 端点前缀，实际地址 = 前缀?app=live&stream=流名
     gb28181-url: ""                             # GB28181 完整参数串（serverIP=..&serverPort=..&serverID=..&agentID=..&agentPassword=..&localPort=..&channel=..）
 
+  # 对象存储（媒体文件/远程日志由设备直传，未配置则媒体上传功能不可用）：
+  # oss:
+  #   provider: minio                             # ali / aws / minio
+  #   bucket: wanxiang
+  #   endpoint: http://127.0.0.1:9000
+  #   region: us-east-1
+  #   access-key-id: xxx
+  #   access-key-secret: xxx
+  #   security-token: ""
+  #   object-key-prefix: ""                       # 媒体存储目录前缀，缺省按网关 SN 分目录
+
 
 
 # Sa-Token 配置（会话持久化到 Redis）

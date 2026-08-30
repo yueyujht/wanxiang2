@@ -143,6 +143,32 @@ CREATE TABLE IF NOT EXISTS sys_airsense_warning (
     KEY idx_created_at (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'AirSense 空域告警表（ADS-B 检测到的周边航班）';
 
+CREATE TABLE IF NOT EXISTS sys_media_file (
+    id                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    device_sn         VARCHAR(64)   NOT NULL COMMENT '上报的网关设备 SN（机场）',
+    object_key        VARCHAR(512)  NOT NULL COMMENT '文件在对象存储桶的 Key',
+    file_name         VARCHAR(256)  DEFAULT NULL COMMENT '文件名称',
+    file_path         VARCHAR(512)  DEFAULT NULL COMMENT '文件的业务路径',
+    flight_id         VARCHAR(64)   DEFAULT NULL COMMENT '所属任务 ID',
+    drone_model_key   VARCHAR(32)   DEFAULT NULL COMMENT '飞行器型号枚举（domain-type-subtype）',
+    payload_model_key VARCHAR(32)   DEFAULT NULL COMMENT '负载型号枚举（domain-type-subtype）',
+    is_original       TINYINT(1)    DEFAULT NULL COMMENT '是否原图',
+    gimbal_yaw        DOUBLE        DEFAULT NULL COMMENT '云台偏航角（度）',
+    absolute_altitude DOUBLE        DEFAULT NULL COMMENT '拍摄绝对高度（米）',
+    relative_altitude DOUBLE        DEFAULT NULL COMMENT '拍摄相对高度（米）',
+    shoot_lat         DOUBLE        DEFAULT NULL COMMENT '拍摄位置纬度',
+    shoot_lng         DOUBLE        DEFAULT NULL COMMENT '拍摄位置经度',
+    shoot_time        DATETIME      DEFAULT NULL COMMENT '媒体拍摄时间',
+    uploaded_count    INT           DEFAULT NULL COMMENT '该飞行架次当前已上传媒体数量',
+    expected_count    INT           DEFAULT NULL COMMENT '该飞行架次拍摄媒体总数量',
+    flight_type       INT           DEFAULT NULL COMMENT '飞行类型 0 航线任务 / 1 一键起飞任务',
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_object_key (object_key(255)),
+    KEY idx_device_sn (device_sn),
+    KEY idx_created_at (created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '媒体文件表（设备上传到对象存储后的元数据）';
+
 CREATE TABLE IF NOT EXISTS sys_firmware_task (
     id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     device_sn      VARCHAR(64)  NOT NULL COMMENT '设备 SN',

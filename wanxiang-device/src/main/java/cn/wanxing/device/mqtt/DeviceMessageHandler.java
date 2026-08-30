@@ -7,6 +7,7 @@ import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
 import cn.wanxing.device.firmware.service.FirmwareService;
 import cn.wanxing.device.live.service.LiveService;
+import cn.wanxing.device.media.service.MediaService;
 import cn.wanxing.device.status.service.DevicePropertyService;
 import cn.wanxing.device.remotelog.service.RemoteLogService;
 import cn.wanxing.device.status.service.DeviceOsdService;
@@ -60,6 +61,8 @@ public class DeviceMessageHandler {
     private final RemoteLogService remoteLogService;
 
     private final LiveService liveService;
+
+    private final MediaService mediaService;
 
     private final ObjectMapper objectMapper;
 
@@ -124,7 +127,8 @@ public class DeviceMessageHandler {
 
     /**
      * events 主题按 method 分发：hms 告警，ota_progress 固件升级进度，fileupload_progress 远程日志进度，
-     * airsense_warning 空域告警（ADS-B 周边航班）
+     * airsense_warning 空域告警（ADS-B 周边航班），file_upload_callback 媒体上传结果，
+     * highest_priority_upload_flighttask_media 媒体优先级查询
      */
     private void routeEvents(String sn, String method, String body) {
         if ("hms".equals(method)) {
@@ -135,6 +139,10 @@ public class DeviceMessageHandler {
             remoteLogService.handleProgress(sn, body);
         } else if ("airsense_warning".equals(method)) {
             airsenseService.handleWarning(sn, body);
+        } else if ("file_upload_callback".equals(method)) {
+            mediaService.handleUploadCallback(sn, body);
+        } else if ("highest_priority_upload_flighttask_media".equals(method)) {
+            mediaService.handlePriorityQuery(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 events method={} sn={}", method, sn);
         }

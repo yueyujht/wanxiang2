@@ -1,10 +1,12 @@
 package cn.wanxing.device.bind;
 
 import cn.wanxing.device.config.DjiProperties;
+import cn.wanxing.device.config.OssProperties;
 import cn.wanxing.device.device.constant.DeviceModelEnum;
 import cn.wanxing.device.exception.BindErrorCode;
 import cn.wanxing.device.device.entity.Device;
 import cn.wanxing.device.device.mapper.DeviceMapper;
+import cn.wanxing.device.mqtt.DeviceTopicConst;
 import cn.wanxing.device.mqtt.MqttPublisher;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.mapper.OrgMapper;
@@ -27,8 +29,9 @@ import java.util.Map;
 /**
  * 机场请求-应答服务：处理设备发来的 requests 消息，并回复 requests_reply。
  *
- * <p>处理四种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
- * airport_organization_get（按绑定码查组织）、airport_organization_bind（执行绑定）。
+ * <p>处理五种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
+ * airport_organization_get（按绑定码查组织）、airport_organization_bind（执行绑定）、
+ * storage_config_get（媒体上传临时凭证下发）。
  */
 @Slf4j
 @Service
@@ -54,6 +57,8 @@ public class BindingService {
 
     private final DjiProperties djiProperties;
 
+    private final OssProperties ossProperties;
+
     /**
      * 入口：解析请求信封，按 method 分发，最后回复 requests_reply
      */
@@ -76,7 +81,17 @@ public class BindingService {
         MethodResult result;
         switch (method) {
             case "config" -> {
-                publishConfigReply(topic, request);
+                // 配置更新：当前仅支持 json 格式 + 产品维度（官方枚举），字段缺省放行兼容老固件，
+                // 未知值回错误码让设备立即感知而不是等超时
+                if (isSupportedConfig(request.getData())) {
+                    publishConfigReply(topic, request);
+                } else {
+                    publishErrorReply(topic, request);
+                }
+                return;
+            }
+            case "storage_config_get" -> {
+                publishStorageConfigReply(topic, request);
                 return;
             }
             case "airport_bind_status" -> result = handleBindStatus(request.getData());
@@ -116,6 +131,55 @@ public class BindingService {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * 校验配置请求（官方"配置更新"页的枚举：config_type=json、config_scope=product），
+     * 字段缺省按支持值放行，兼容未携带这些字段的老固件
+     */
+    private boolean isSupportedConfig(JsonNode data) {
+        String type = data == null ? null : data.path("config_type").asText(null);
+        String scope = data == null ? null : data.path("config_scope").asText(null);
+        return (type == null || "json".equals(type)) && (scope == null || "product".equals(scope));
+    }
+
+    /**
+     * 媒体上传临时凭证下发（storage_config_get，module=0 媒体）：
+     * 字段与远程日志 fileupload_start 的凭证同源（wanxiang.oss.*），另带 object_key_prefix
+     * 约定桶内目录——未配置时按网关 SN 隔离，设备把媒体文件直传对象存储后经 file_upload_callback 回报。
+     */
+    private void publishStorageConfigReply(String topic, RequestsMessage request) {
+        if (isBlank(ossProperties.getBucket()) || isBlank(ossProperties.getAccessKeyId())) {
+            log.error("对象存储未配置（wanxiang.oss.bucket/access-key-id 等），设备的 storage_config_get 将拿到空凭证，"
+                    + "媒体上传会失败 topic={}", topic);
+        }
+        // storage_config_get 的回执结构与 config 一样平铺在 output 下（外层 result 由 publishReply 统一包 0）
+        ObjectNode output = objectMapper.createObjectNode();
+        output.put("bucket", ossProperties.getBucket());
+        output.put("region", ossProperties.getRegion());
+        output.put("endpoint", ossProperties.getEndpoint());
+        output.put("provider", ossProperties.getProvider());
+        ObjectNode credentials = output.putObject("credentials");
+        credentials.put("access_key_id", ossProperties.getAccessKeyId());
+        credentials.put("access_key_secret", ossProperties.getAccessKeySecret());
+        credentials.put("expire", System.currentTimeMillis() + 3600000L);
+        credentials.put("security_token", ossProperties.getSecurityToken());
+        output.put("object_key_prefix", isBlank(ossProperties.getObjectKeyPrefix())
+                ? defaultObjectKeyPrefix(topic) : ossProperties.getObjectKeyPrefix());
+        publishReply(topic, request, "storage_config_get", RESULT_SUCCESS, output);
+    }
+
+    /**
+     * 缺省的存储目录前缀：取主题中的网关 SN（thing/product/{sn}/requests），实现桶内按机场隔离
+     */
+    private String defaultObjectKeyPrefix(String topic) {
+        int start = topic.indexOf(DeviceTopicConst.PRODUCT);
+        if (start < 0) {
+            return "";
+        }
+        start += DeviceTopicConst.PRODUCT.length();
+        int end = topic.indexOf("/", start);
+        return end < 0 ? topic.substring(start) : topic.substring(start, end);
     }
 
     private static String orEmpty(String value) {

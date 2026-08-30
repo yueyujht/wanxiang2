@@ -51,6 +51,15 @@ public enum MqttScenario {
     /** requests：airport_organization_bind */
     ORG_BIND("设备绑定机构"),
 
+    /** requests：storage_config_get（媒体上传临时凭证） */
+    STORAGE_CONFIG("存储凭证请求"),
+
+    /** events：媒体文件上传结果 */
+    MEDIA_UPLOAD_CALLBACK("媒体上传结果"),
+
+    /** events：媒体高优先级任务查询 */
+    MEDIA_PRIORITY_QUERY("媒体优先级查询"),
+
     /** 无法归类的消息（未知主题或未知 method） */
     UNKNOWN("未知消息");
 
@@ -89,6 +98,7 @@ public enum MqttScenario {
             case "airport_bind_status" -> BIND_STATUS;
             case "airport_organization_get" -> ORG_GET;
             case "airport_organization_bind" -> ORG_BIND;
+            case "storage_config_get" -> STORAGE_CONFIG;
             default -> UNKNOWN;
         };
     }
@@ -108,6 +118,12 @@ public enum MqttScenario {
         }
         if ("airsense_warning".equals(method)) {
             return AIRSENSE_WARNING;
+        }
+        if ("file_upload_callback".equals(method)) {
+            return MEDIA_UPLOAD_CALLBACK;
+        }
+        if ("highest_priority_upload_flighttask_media".equals(method)) {
+            return MEDIA_PRIORITY_QUERY;
         }
         return UNKNOWN;
     }

@@ -11,6 +11,7 @@ import cn.wanxing.device.live.dto.LiveStopRequest;
 import cn.wanxing.device.live.service.LiveService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,11 +19,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 直播控制接口（执行结果经 services_reply 推送到 /topic/device/{sn}/live）
+ * 直播控制接口（执行结果经 services_reply 推送到 /topic/device/{sn}/live；仅配置 MQTT 后生效）
  */
 @RestController
 @RequestMapping("/device/{sn}/live")
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "wanxiang.mqtt", name = "broker-url")
 public class LiveController {
 
     private final LiveService liveService;
