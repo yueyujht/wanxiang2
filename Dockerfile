@@ -8,12 +8,14 @@ WORKDIR /build
 COPY pom.xml .
 COPY wanxiang-common/pom.xml wanxiang-common/pom.xml
 COPY wanxiang-user/pom.xml wanxiang-user/pom.xml
+COPY wanxiang-device/pom.xml wanxiang-device/pom.xml
 COPY wanxiang-app/pom.xml wanxiang-app/pom.xml
 RUN mvn -q -B -pl wanxiang-app -am dependency:go-offline || true
 
 # 复制源码并打包（只构建 wanxiang-app 及其依赖模块）
 COPY wanxiang-common/src wanxiang-common/src
 COPY wanxiang-user/src wanxiang-user/src
+COPY wanxiang-device/src wanxiang-device/src
 COPY wanxiang-app/src wanxiang-app/src
 RUN mvn -q -B clean package -DskipTests -pl wanxiang-app -am
 

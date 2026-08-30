@@ -8,6 +8,7 @@ import cn.wanxing.device.firmware.entity.FirmwareTask;
 import cn.wanxing.device.firmware.service.FirmwareService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,11 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 固件升级接口
+ * 固件升级接口（仅配置 MQTT 后生效）
  */
 @RestController
 @RequestMapping("/device/{sn}/firmware")
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "wanxiang.mqtt", name = "broker-url")
 public class FirmwareController {
 
     private final FirmwareService firmwareService;

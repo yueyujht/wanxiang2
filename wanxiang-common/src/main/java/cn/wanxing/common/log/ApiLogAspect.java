@@ -39,8 +39,12 @@ public class ApiLogAspect {
         String name = method.getDeclaringClass().getSimpleName() + "#" + method.getName();
         Object[] args = pjp.getArgs();
 
-        //循环遍历所有参数，进行参数校验
+        //循环遍历所有参数，进行参数校验；null 参数跳过（可空请求体的约定，如 @RequestBody(required=false)），
+        // 且 Hibernate Validator 对 null 直接抛 IllegalArgumentException，跳过避免把空请求体变成 500
         for (Object parameter : args) {
+            if (parameter == null) {
+                continue;
+            }
             try {
                 BeanValidator.validateObject(parameter);
             } catch (ValidationException e) {

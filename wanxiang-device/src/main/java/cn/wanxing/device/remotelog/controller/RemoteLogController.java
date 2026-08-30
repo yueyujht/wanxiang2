@@ -8,6 +8,7 @@ import cn.wanxing.device.remotelog.dto.RemoteLogUploadRequest;
 import cn.wanxing.device.remotelog.service.RemoteLogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,11 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 远程日志接口
+ * 远程日志接口（仅配置 MQTT 后生效）
  */
 @RestController
 @RequestMapping("/device/{sn}/log")
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "wanxiang.mqtt", name = "broker-url")
 public class RemoteLogController {
 
     private final RemoteLogService remoteLogService;
@@ -30,7 +32,8 @@ public class RemoteLogController {
     @SaCheckPermission(PermissionConst.DEVICE_CONFIG)
     @PostMapping("/list")
     public Result<Boolean> list(@PathVariable String sn, @RequestBody(required = false) RemoteLogListRequest req) {
-        remoteLogService.listLogs(sn, req);
+        // 请求体可省略（默认全模块），与 cancel 同款兜底；切面对 null 参数跳过校验
+        remoteLogService.listLogs(sn, req == null ? new RemoteLogListRequest() : req);
         return Result.success(Boolean.TRUE);
     }
 
