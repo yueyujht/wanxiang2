@@ -5,6 +5,7 @@ import cn.wanxing.device.airsense.service.AirsenseService;
 import cn.wanxing.device.alarm.service.AlarmService;
 import cn.wanxing.device.bind.BindingService;
 import cn.wanxing.device.config.MqttConfig;
+import cn.wanxing.device.drc.service.DrcService;
 import cn.wanxing.device.firmware.service.FirmwareService;
 import cn.wanxing.device.flightarea.service.FlightAreaService;
 import cn.wanxing.device.live.service.LiveService;
@@ -70,6 +71,8 @@ public class DeviceMessageHandler {
 
     private final WaylineJobService waylineJobService;
 
+    private final DrcService drcService;
+
     private final ObjectMapper objectMapper;
 
     @ServiceActivator(inputChannel = MqttConfig.INBOUND_CHANNEL)
@@ -125,6 +128,7 @@ public class DeviceMessageHandler {
             case PROPERTY_SET_REPLY -> propertyService.handleReply(sn, body);
             case STATE -> stateService.handleState(sn, body);
             case OSD -> osdService.handleOsd(sn, body);
+            case DRC_UP -> drcService.handleDrcUp(sn, body);
             case EVENTS -> routeEvents(sn, method, body);
             case SERVICES_REPLY -> routeServicesReply(sn, method, body);
             default -> log.warn("[MQTT] 未知的消息主题，已忽略 topic={}", topic);
@@ -155,6 +159,12 @@ public class DeviceMessageHandler {
             flightAreaService.handleDroneLocation(sn, body);
         } else if ("flighttask_progress".equals(method)) {
             waylineJobService.handleProgress(sn, body);
+        } else if ("fly_to_point_progress".equals(method)) {
+            drcService.handleFlyToProgress(sn, body);
+        } else if ("takeoff_to_point_progress".equals(method)) {
+            drcService.handleTakeoffProgress(sn, body);
+        } else if ("drc_status_notify".equals(method)) {
+            drcService.handleStatusNotify(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 events method={} sn={}", method, sn);
         }

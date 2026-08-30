@@ -25,7 +25,9 @@ public enum DeviceErrorCode implements ErrorCode {
     WAYLINE_FILE_NOT_FOUND("WAYLINE_FILE_NOT_FOUND", "航线文件不存在"),
     WAYLINE_JOB_NOT_FOUND("WAYLINE_JOB_NOT_FOUND", "航线任务不存在"),
     WAYLINE_JOB_STATE_INVALID("WAYLINE_JOB_STATE_INVALID", "任务当前状态不允许该操作"),
-    WAYLINE_COMMAND_FAILED("WAYLINE_COMMAND_FAILED", "航线任务指令下发失败");
+    WAYLINE_COMMAND_FAILED("WAYLINE_COMMAND_FAILED", "航线任务指令下发失败"),
+    DRC_NOT_CONFIGURED("DRC_NOT_CONFIGURED", "DRC 通道凭证未配置"),
+    DRC_COMMAND_FAILED("DRC_COMMAND_FAILED", "DRC 指令下发失败");
 
     private final String code;
 

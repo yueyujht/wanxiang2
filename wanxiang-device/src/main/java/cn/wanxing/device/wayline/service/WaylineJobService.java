@@ -32,6 +32,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -230,10 +231,11 @@ public class WaylineJobService {
                 log.error("下发任务 execute 失败，下轮重试 flightId={}", job.getFlightId(), e);
             }
         }
-        // ③ 超时兜底：sent/executing 长时间无进度更新
+        // ③ 超时兜底：sent/executing 长时间无进度更新（update_time 由每次进度写入刷新，见 handleProgress）
+        LocalDateTime timeoutBefore = LocalDateTime.now().minusSeconds(TIMEOUT_NO_PROGRESS_MS / 1000);
         for (WaylineJob job : waylineJobMapper.selectList(new LambdaQueryWrapper<WaylineJob>()
                 .in(WaylineJob::getStatus, Arrays.asList(STATUS_SENT, STATUS_EXECUTING))
-                .lt(WaylineJob::getExecuteTime, now - TIMEOUT_NO_PROGRESS_MS))) {
+                .lt(WaylineJob::getUpdatedAt, timeoutBefore))) {
             job.setStatus(STATUS_TIMEOUT);
             waylineJobMapper.updateById(job);
             log.warn("任务无进度更新超时，判 timeout flightId={} sn={}", job.getFlightId(), job.getDeviceSn());
@@ -275,6 +277,9 @@ public class WaylineJobService {
         String breakpointJson = ext.getBreakPoint() == null ? null : writeJson(ext.getBreakPoint());
         job.applyProgress(output.getStatus(), progress == null ? null : progress.getCurrentStep(),
                 progress == null ? null : progress.getPercent(), ext.getMediaCount(), breakpointJson);
+        // 显式推进 update_time：实体未挂自动填充，updateById 会把查出的旧值原样写回，
+        // 不刷新则超时兜底（按 update_time 判定）会把执行中的长任务误判 timeout
+        job.setUpdatedAt(java.time.LocalDateTime.now());
         waylineJobMapper.updateById(job);
 
         log.info("航线任务进度 sn={} flightId={} status={} percent={}",

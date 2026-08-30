@@ -53,7 +53,7 @@ wanxiang:
     broker-url: tcp://127.0.0.1:1883
     username: yueyu
     password: 123456
-    inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests,thing/product/+/property/set_reply,thing/product/+/services_reply
+    inbound-topic: sys/product/+/status,thing/product/+/osd,thing/product/+/state,thing/product/+/events,thing/product/+/requests,thing/product/+/property/set_reply,thing/product/+/services_reply,thing/product/+/drc/up
     client-id: wanxiang
   # DJI 上云 API 应用凭据（创建「上云 API」应用后拿到，License 校验时下发给设备）
   dji:
@@ -79,6 +79,17 @@ wanxiang:
   # 该地址必须是机场网络可达的平台地址
   wayline:
     base-url: http://127.0.0.1:8080
+
+  # 指令飞行（DRC）：进入指令飞行模式时下发给设备的 MQTT 中继凭证，
+  # 设备凭此建立 DRC 高频通道（摇杆/HSI）的第二条连接，通常与主 broker 同实例
+  drc:
+    broker-address: 127.0.0.1:1883
+    username: yueyu
+    password: 123456
+    enable-tls: false
+    expire-seconds: 3600
+    osd-frequency: 10
+    hsi-frequency: 1
 
   # 对象存储（媒体文件/远程日志由设备直传，未配置则媒体上传功能不可用）：
   # oss:

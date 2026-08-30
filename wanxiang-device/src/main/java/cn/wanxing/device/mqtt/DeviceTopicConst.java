@@ -30,6 +30,9 @@ public final class DeviceTopicConst {
     public static final String REQUESTS_REPLY_SUF = "/requests_reply";
     public static final String PROPERTY_SET_SUF = "/property/set";
     public static final String PROPERTY_SET_REPLY_SUF = "/property/set_reply";
+    /** DRC 高频通道（摇杆/HSI/高频 OSD），down 云到设备 / up 设备到云 */
+    public static final String DRC_DOWN_SUF = "/drc/down";
+    public static final String DRC_UP_SUF = "/drc/up";
 
     /** 回复主题后缀 */
     public static final String REPLY_SUF = "_reply";

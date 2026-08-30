@@ -20,11 +20,14 @@ public enum DeviceTopicType {
     /** 控制指令应答：thing/product/{sn}/services_reply */
     SERVICES_REPLY,
 
-    /** 设备发来的请求：thing/product/{sn}/requests（如绑定、License 校验） */
+    /** 设备发来的请求：thing/product/{sn}/requests（如绑定、License 校验、资源获取） */
     REQUESTS,
 
     /** 属性设置回执：thing/product/{sn}/property/set_reply */
     PROPERTY_SET_REPLY,
+
+    /** DRC 高频通道上行：thing/product/{sn}/drc/up（摇杆/HSI/高频 OSD，平台透传给前端） */
+    DRC_UP,
 
     /** 未知类型（暂不处理） */
     UNKNOWN;
@@ -38,6 +41,10 @@ public enum DeviceTopicType {
         }
         if (topic.endsWith(DeviceTopicConst.STATUS_SUF)) {
             return ONLINE_OFFLINE;
+        }
+        // drc/up 需在 osd/state 之前判断（无后缀冲突，仅求语义清晰）
+        if (topic.endsWith(DeviceTopicConst.DRC_UP_SUF)) {
+            return DRC_UP;
         }
         if (topic.endsWith(DeviceTopicConst.OSD_SUF)) {
             return OSD;

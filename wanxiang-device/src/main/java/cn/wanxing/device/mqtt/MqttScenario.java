@@ -78,6 +78,18 @@ public enum MqttScenario {
     /** requests：flighttask_resource_get 任务资源获取 */
     WAYLINE_RESOURCE_GET("任务资源获取"),
 
+    /** events：fly-to 执行进度 */
+    FLY_TO_PROGRESS("fly-to 进度"),
+
+    /** events：一键起飞进度 */
+    TAKEOFF_PROGRESS("一键起飞进度"),
+
+    /** events：DRC 链路状态 */
+    DRC_STATUS("DRC 链路状态"),
+
+    /** DRC 高频通道上行透传 */
+    DRC_UP("DRC 高频数据"),
+
     /** 无法归类的消息（未知主题或未知 method） */
     UNKNOWN("未知消息");
 
@@ -100,6 +112,7 @@ public enum MqttScenario {
             case OSD -> OSD;
             case STATE -> STATE;
             case PROPERTY_SET_REPLY -> PROPERTY_SET_REPLY;
+            case DRC_UP -> DRC_UP;
             case REQUESTS -> ofRequest(method);
             case EVENTS -> ofEvent(method);
             case SERVICES_REPLY -> ofServicesReply(method);
@@ -152,6 +165,15 @@ public enum MqttScenario {
         }
         if ("flighttask_progress".equals(method)) {
             return WAYLINE_PROGRESS;
+        }
+        if ("fly_to_point_progress".equals(method)) {
+            return FLY_TO_PROGRESS;
+        }
+        if ("takeoff_to_point_progress".equals(method)) {
+            return TAKEOFF_PROGRESS;
+        }
+        if ("drc_status_notify".equals(method)) {
+            return DRC_STATUS;
         }
         return UNKNOWN;
     }
