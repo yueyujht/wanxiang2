@@ -74,10 +74,14 @@ public class FlightAreaService {
     /**
      * 创建飞行区文件：校验 JSON 合法性，计算 SHA256 签名与大小；
      * 机构用户创建的文件挂本机构（设备拉取时按机构过滤），平台超管创建的为全局文件
+     *
+     * <p>官方文件模板为 GeoJSON FeatureCollection（features[].geofence_type = dfence 围栏 / nfz 禁飞区，
+     * Polygon 坐标首尾点闭合）；服务端只强校验"合法 JSON 对象"，模板结构不做全量校验（由前端规划工具保证），
+     * 但 type 非 FeatureCollection 时打 WARN 提醒——设备端解析失败会导致同步失败，尽早暴露
      */
     @ApiLog("创建飞行区文件")
     public FlightAreaFile createFile(FlightAreaFileRequest req) {
-        // 1.校验内容为合法 JSON 对象（完整模板结构校验由前端规划工具保证）
+        // 1.校验内容为合法 JSON 对象
         JsonNode content;
         try {
             content = objectMapper.readTree(req.getContent());
@@ -85,6 +89,10 @@ public class FlightAreaService {
             throw new DeviceException(DeviceErrorCode.PROPERTY_VALUE_INVALID);
         }
         Assert.isTrue(content.isObject(), () -> new DeviceException(DeviceErrorCode.PROPERTY_VALUE_INVALID));
+        if (!"FeatureCollection".equals(content.path("type").asText())) {
+            log.warn("飞行区文件内容不是官方 FeatureCollection 模板结构（type={}），设备端可能解析失败 name={}",
+                    content.path("type").asText(""), req.getName());
+        }
 
         // 2.归属机构：超管（无机构）创建的为全局文件
         User operator = userContext.currentUser();

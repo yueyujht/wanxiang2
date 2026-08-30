@@ -181,6 +181,52 @@ CREATE TABLE IF NOT EXISTS sys_flight_area_file (
     PRIMARY KEY (id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自定义飞行区文件（平台生成，设备经 flight_areas_get 拉取）';
 
+CREATE TABLE IF NOT EXISTS sys_wayline_file (
+    id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    org_id      BIGINT       DEFAULT NULL COMMENT '所属机构 ID（NULL=全局）',
+    name        VARCHAR(256) NOT NULL COMMENT '航线文件名（如 xxx.kmz）',
+    content     LONGBLOB     NOT NULL COMMENT 'KMZ 文件内容（WPML 航线标准格式）',
+    fingerprint VARCHAR(32)  NOT NULL COMMENT '文件 MD5 签名（协议 fingerprint，设备校验用）',
+    size        BIGINT       NOT NULL COMMENT '文件大小（字节）',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '航线文件（KMZ，平台存储，设备经 flighttask_resource_get 拉取）';
+
+CREATE TABLE IF NOT EXISTS sys_wayline_job (
+    id                        BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    flight_id                 VARCHAR(64)  NOT NULL COMMENT '任务 ID（平台生成 UUID，贯穿 prepare/execute/progress/undo）',
+    org_id                    BIGINT       DEFAULT NULL COMMENT '所属机构 ID（取目标设备的机构）',
+    device_sn                 VARCHAR(64)  NOT NULL COMMENT '目标网关设备 SN（机场）',
+    wayline_file_id           BIGINT       NOT NULL COMMENT '航线文件 ID（sys_wayline_file）',
+    name                      VARCHAR(128) DEFAULT NULL COMMENT '任务名称',
+    task_type                 INT          NOT NULL COMMENT '任务类型 0 立即 / 1 定时（2 条件任务二期）',
+    execute_time              BIGINT       NOT NULL COMMENT '执行时间（毫秒时间戳）',
+    rth_altitude              INT          DEFAULT NULL COMMENT '返航高度（米，20-1500）',
+    rth_mode                  INT          DEFAULT 1 COMMENT '返航高度模式 0 智能 / 1 设定（机场仅支持 1）',
+    out_of_control_action     INT          DEFAULT 0 COMMENT '失控动作（协议当前固定 0 返航）',
+    exit_wayline_when_rc_lost INT          DEFAULT 0 COMMENT '航线失控动作 0 继续执行 / 1 退出并执行失控动作',
+    wayline_precision_type    INT          DEFAULT 1 COMMENT '航线精度 0 GPS / 1 RTK（默认建议 RTK）',
+    simulate_mission          TINYINT(1)   DEFAULT 0 COMMENT '是否模拟器执行（室内调试，不实际起飞）',
+    simulate_latitude         DOUBLE       DEFAULT NULL COMMENT '模拟器起始纬度',
+    simulate_longitude        DOUBLE       DEFAULT NULL COMMENT '模拟器起始经度',
+    storage_capacity          INT          DEFAULT NULL COMMENT '执行条件：最低存储容量（MB）',
+    status                    VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT 'pending/sent/executing/ok/failed/canceled/timeout/partially_done/paused/rejected',
+    prepare_sent              TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '平台已下发 flighttask_prepare',
+    execute_sent              TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '平台已下发 flighttask_execute',
+    current_step              INT          DEFAULT NULL COMMENT '最新执行步骤（progress.current_step，机场工作流）',
+    percent                   INT          DEFAULT NULL COMMENT '最新进度百分比（0-100）',
+    media_count               INT          DEFAULT NULL COMMENT '本次任务产生的媒体文件数量',
+    breakpoint                JSON         DEFAULT NULL COMMENT '最新断点信息（progress.ext.break_point 原文，供二期断点续飞）',
+    created_at                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_flight_id (flight_id),
+    KEY idx_device_sn (device_sn),
+    KEY idx_status (status),
+    KEY idx_execute_time (execute_time)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '航线任务（飞行任务生命周期）';
+
 CREATE TABLE IF NOT EXISTS sys_firmware_task (
     id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     device_sn      VARCHAR(64)  NOT NULL COMMENT '设备 SN',

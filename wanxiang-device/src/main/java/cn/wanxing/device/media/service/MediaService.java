@@ -13,6 +13,7 @@ import cn.wanxing.device.media.mapper.MediaFileMapper;
 import cn.wanxing.device.media.message.MediaUploadMessage;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
 import cn.wanxing.device.mqtt.MqttPublisher;
+import cn.wanxing.device.wayline.service.WaylineJobService;
 import cn.wanxing.user.context.UserContext;
 import cn.wanxing.user.entity.User;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -56,6 +57,8 @@ public class MediaService {
 
     private final MqttPublisher mqttPublisher;
 
+    private final WaylineJobService waylineJobService;
+
     private final UserContext userContext;
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -95,14 +98,14 @@ public class MediaService {
 
         // 4.设备要求回执时回复 events_reply（result=0 表示已处理，设备不再重发）
         if (Integer.valueOf(NEED_REPLY).equals(message.getNeedReply())) {
-            sendEventsReply(sn, message.getTid(), message.getBid(), message.getMethod());
+            sendEventsReply(sn, message.getTid(), message.getBid(), message.getMethod(), null);
         }
     }
 
     /**
      * 响应设备的高优先级媒体查询（events: highest_priority_upload_flighttask_media）：
-     * 平台当前无飞行任务模块，仅回执确认（设备拿到空任务 ID 后按默认顺序上传），
-     * 任务模块实现后应回当前最高优先级任务的 flight_id
+     * 返回该设备当前进行中任务（sent/executing）的 flight_id——任务媒体优先上传；
+     * 无进行中任务时仅回执确认，设备按默认顺序上传
      */
     public void handlePriorityQuery(String sn, String payload) {
         JsonNode root;
@@ -112,9 +115,19 @@ public class MediaService {
             log.warn("解析媒体优先级查询消息失败 sn={} payload={}", sn, payload, e);
             return;
         }
-        log.info("收到媒体高优先级查询，暂无任务模块，按默认顺序上传 sn={}", sn);
+        String flightId = waylineJobService.findActiveFlightId(sn);
+        if (flightId != null) {
+            log.info("收到媒体高优先级查询，回进行中任务 sn={} flightId={}", sn, flightId);
+        } else {
+            log.info("收到媒体高优先级查询，无进行中任务，按默认顺序上传 sn={}", sn);
+        }
+        ObjectNode output = null;
+        if (flightId != null) {
+            output = objectMapper.createObjectNode();
+            output.put("flight_id", flightId);
+        }
         sendEventsReply(sn, root.path("tid").asText(null), root.path("bid").asText(null),
-                root.path("method").asText(null));
+                root.path("method").asText(null), output);
     }
 
     /**
@@ -176,15 +189,20 @@ public class MediaService {
     }
 
     /**
-     * 回复事件回执到 events_reply：回传相同的 tid/bid/method（设备靠它们匹配事件与应答）
+     * 回复事件回执到 events_reply：回传相同的 tid/bid/method（设备靠它们匹配事件与应答）；
+     * output 非空时附带业务输出（如媒体优先级查询的 flight_id）
      */
-    private void sendEventsReply(String sn, String tid, String bid, String method) {
+    private void sendEventsReply(String sn, String tid, String bid, String method, JsonNode output) {
         ObjectNode reply = objectMapper.createObjectNode();
         reply.put("tid", tid);
         reply.put("bid", bid);
         reply.put("timestamp", System.currentTimeMillis());
         reply.put("method", method);
-        reply.putObject("data").put("result", 0);
+        ObjectNode data = reply.putObject("data");
+        data.put("result", 0);
+        if (output != null) {
+            data.set("output", output);
+        }
 
         String topic = DeviceTopicConst.THING_PRE + DeviceTopicConst.PRODUCT + sn
                 + DeviceTopicConst.EVENTS_SUF + DeviceTopicConst.REPLY_SUF;

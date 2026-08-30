@@ -17,10 +17,12 @@ public class SaTokenConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new SaInterceptor(handler -> {
             // 放行发送验证码/登录（及 Spring 错误页），其余接口需登录。
-            // 自定义飞行区下载接口放行：调用方是机场设备（无登录态），经 flight_areas_get 间接获取地址
+            // 飞行区/航线文件下载接口放行：调用方是机场设备（无登录态），分别经
+            // flight_areas_get / flighttask_resource_get 间接获取地址
             SaRouter.match("/**")
                     .notMatch("/auth/sendCode", "/auth/login", "/error",
-                            "/device/flight-area/files/*/download")
+                            "/device/flight-area/files/*/download",
+                            "/device/wayline/files/*/download")
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }

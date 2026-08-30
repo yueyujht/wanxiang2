@@ -14,6 +14,7 @@ import cn.wanxing.device.remotelog.service.RemoteLogService;
 import cn.wanxing.device.status.service.DeviceOsdService;
 import cn.wanxing.device.status.service.DeviceStateService;
 import cn.wanxing.device.status.service.TopologyService;
+import cn.wanxing.device.wayline.service.WaylineJobService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +67,8 @@ public class DeviceMessageHandler {
     private final MediaService mediaService;
 
     private final FlightAreaService flightAreaService;
+
+    private final WaylineJobService waylineJobService;
 
     private final ObjectMapper objectMapper;
 
@@ -150,6 +153,8 @@ public class DeviceMessageHandler {
             flightAreaService.handleSyncProgress(sn, body);
         } else if ("flight_areas_drone_location".equals(method)) {
             flightAreaService.handleDroneLocation(sn, body);
+        } else if ("flighttask_progress".equals(method)) {
+            waylineJobService.handleProgress(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 events method={} sn={}", method, sn);
         }
@@ -157,7 +162,7 @@ public class DeviceMessageHandler {
 
     /**
      * services_reply 主题按 method 分发：ota_create 固件，fileupload_* 远程日志，live_* 直播，
-     * flight_areas_update 自定义飞行区同步
+     * flight_areas_update 自定义飞行区同步，flighttask_* 航线任务
      */
     private void routeServicesReply(String sn, String method, String body) {
         if ("ota_create".equals(method)) {
@@ -168,6 +173,8 @@ public class DeviceMessageHandler {
             liveService.handleReply(sn, body);
         } else if ("flight_areas_update".equals(method)) {
             flightAreaService.handleUpdateReply(sn, body);
+        } else if (method != null && method.startsWith("flighttask_")) {
+            waylineJobService.handleReply(sn, body);
         } else {
             log.warn("[MQTT] 忽略未知 services_reply method={} sn={}", method, sn);
         }

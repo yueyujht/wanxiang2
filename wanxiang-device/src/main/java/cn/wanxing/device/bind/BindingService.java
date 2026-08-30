@@ -9,6 +9,7 @@ import cn.wanxing.device.device.mapper.DeviceMapper;
 import cn.wanxing.device.flightarea.service.FlightAreaService;
 import cn.wanxing.device.mqtt.DeviceTopicConst;
 import cn.wanxing.device.mqtt.MqttPublisher;
+import cn.wanxing.device.wayline.service.WaylineJobService;
 import cn.wanxing.user.entity.Org;
 import cn.wanxing.user.mapper.OrgMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -30,9 +31,10 @@ import java.util.Map;
 /**
  * 机场请求-应答服务：处理设备发来的 requests 消息，并回复 requests_reply。
  *
- * <p>处理六种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
+ * <p>处理七种 method：config（License 校验）、airport_bind_status（查询绑定状态）、
  * airport_organization_get（按绑定码查组织）、airport_organization_bind（执行绑定）、
- * storage_config_get（媒体上传临时凭证下发）、flight_areas_get（自定义飞行区文件获取，业务在 FlightAreaService）。
+ * storage_config_get（媒体上传临时凭证下发）、flight_areas_get（自定义飞行区文件获取，业务在 FlightAreaService）、
+ * flighttask_resource_get（航线任务资源获取，业务在 WaylineJobService）。
  */
 @Slf4j
 @Service
@@ -61,6 +63,8 @@ public class BindingService {
     private final OssProperties ossProperties;
 
     private final FlightAreaService flightAreaService;
+
+    private final WaylineJobService waylineJobService;
 
     /**
      * 入口：解析请求信封，按 method 分发，最后回复 requests_reply
@@ -98,6 +102,9 @@ public class BindingService {
                 return;
             }
             case "flight_areas_get" -> result = MethodResult.ok(flightAreaService.buildFilesOutput(gatewaySn(topic)));
+            case "flighttask_resource_get" -> result = MethodResult.ok(
+                    waylineJobService.buildResourceOutput(request.getData() == null
+                            ? null : request.getData().path("flight_id").asText(null)));
             case "airport_bind_status" -> result = handleBindStatus(request.getData());
             case "airport_organization_get" -> result = handleOrganizationGet(request.getData());
             case "airport_organization_bind" -> result = handleOrganizationBind(request.getData());

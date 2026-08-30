@@ -6,6 +6,10 @@ spring:
     name: wanxiang
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB      # 航线 KMZ 文件上传上限
+      max-request-size: 55MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3307/wanxiang?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -69,6 +73,11 @@ wanxiang:
   # 自定义飞行区：飞行区文件存平台库，设备经 flight_areas_get 拿到下载地址后从平台 HTTP 下载，
   # 该地址必须是机场网络可达的平台地址（内网部署填平台内网 IP）
   flight-area:
+    base-url: http://127.0.0.1:8080
+
+  # 航线任务：KMZ 航线文件存平台库，设备经 flighttask_resource_get 拿到下载地址后从平台 HTTP 下载，
+  # 该地址必须是机场网络可达的平台地址
+  wayline:
     base-url: http://127.0.0.1:8080
 
   # 对象存储（媒体文件/远程日志由设备直传，未配置则媒体上传功能不可用）：

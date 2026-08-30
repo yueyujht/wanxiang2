@@ -69,6 +69,15 @@ public enum MqttScenario {
     /** services_reply：flight_areas_update 飞行区同步回执 */
     FLIGHT_AREAS_REPLY("飞行区同步回执"),
 
+    /** services_reply：flighttask_* 航线任务回执 */
+    WAYLINE_REPLY("航线任务回执"),
+
+    /** events：航线任务进度 */
+    WAYLINE_PROGRESS("航线任务进度"),
+
+    /** requests：flighttask_resource_get 任务资源获取 */
+    WAYLINE_RESOURCE_GET("任务资源获取"),
+
     /** 无法归类的消息（未知主题或未知 method） */
     UNKNOWN("未知消息");
 
@@ -108,6 +117,7 @@ public enum MqttScenario {
             case "airport_organization_get" -> ORG_GET;
             case "airport_organization_bind" -> ORG_BIND;
             case "storage_config_get" -> STORAGE_CONFIG;
+            case "flighttask_resource_get" -> WAYLINE_RESOURCE_GET;
             default -> UNKNOWN;
         };
     }
@@ -140,6 +150,9 @@ public enum MqttScenario {
         if ("flight_areas_drone_location".equals(method)) {
             return FLIGHT_AREAS_WARNING;
         }
+        if ("flighttask_progress".equals(method)) {
+            return WAYLINE_PROGRESS;
+        }
         return UNKNOWN;
     }
 
@@ -158,6 +171,9 @@ public enum MqttScenario {
         }
         if ("flight_areas_update".equals(method)) {
             return FLIGHT_AREAS_REPLY;
+        }
+        if (method.startsWith("flighttask_")) {
+            return WAYLINE_REPLY;
         }
         return UNKNOWN;
     }
